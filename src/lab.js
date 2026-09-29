@@ -8,7 +8,13 @@ async function refresh(){
  packages=(await voiceRegistry.list()).filter(p=>p.id==='agent-lee-voice-one'||p.source==='USER_LOCAL');if(!packages.some(p=>p.id===selectedId))selectedId='agent-lee-voice-one';
  $('#voiceList').innerHTML=packages.map(p=>`<button class="voice-item ${p.id===selectedId?'active':''}" data-id="${esc(p.id)}"><strong>${esc(p.name)}</strong><small>${esc(p.owner)} · ${esc(p.source)} · ${esc(p.id)}</small></button>`).join('');
  document.querySelectorAll('.voice-item').forEach(b=>b.onclick=()=>select(b.dataset.id));
- if(selectedId)await select(selectedId,false);state('Agent Lee Voice One selected. Preparing automatically...');prepareSelected().catch(e=>state('ERROR: '+e.message));
+ if(selectedId)await select(selectedId,false);
+ if(selectedId==='agent-lee-voice-one'){
+   state('Agent Lee Voice One selected. Preparing automatically...');
+   queueMicrotask(()=>prepareSelected().catch(e=>state('ERROR: '+e.message)));
+ }else{
+   state('Voice package selected. It will prepare automatically when spoken.');
+ }
 }
 async function select(id,rerender=true){
  const pkg=packages.find(p=>p.id===id)||await voiceRegistry.get(id);if(!pkg)throw new Error('Voice package not found.');selectedId=id;
