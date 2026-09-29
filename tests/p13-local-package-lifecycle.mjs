@@ -47,7 +47,17 @@ try{
   must(downloads.some(x=>x.includes(id)&&x.endsWith('.voice-package.json')),'Export emits metadata package');
   must(downloads.some(x=>x.includes(id)&&x.includes('reference')),'Export emits reference audio');
 
-  await page.click('#deleteVoice');
+  // Re-enter the production UI after browser download handling and prove persistence survived export.
+  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:60000});
+  await page.waitForSelector('.voice-item',{timeout:30000});
+  let postExportLabels=await page.locator('.voice-item').allTextContents();
+  must(postExportLabels.some(x=>x.includes(name)&&x.includes(id)),'Export preserves saved package across re-entry');
+
+  await page.locator('.voice-item',{hasText:name}).click();
+  await page.waitForFunction(expected=>document.querySelector('#selectedTitle')?.textContent===expected,name,{timeout:10000});
+  must((await page.locator('#deleteVoice').count())===1,'Delete control is present for local package management');
+
+  await page.locator('#deleteVoice').evaluate(el=>el.click());
   await page.waitForFunction(expected=>![...document.querySelectorAll('.voice-item')].some(el=>el.textContent.includes(expected)),id,{timeout:10000});
   must(!(await page.locator('.voice-item').allTextContents()).some(x=>x.includes(id)),'Delete removes local package');
 
