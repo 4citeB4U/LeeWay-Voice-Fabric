@@ -21,7 +21,11 @@ async function load(id,requested){
   device=requested==='wasm'||!adapter?'wasm':'webgpu';
   const dtype={embed_tokens:'fp32',speech_encoder:'fp32',conditional_decoder:'fp32',language_model:device==='webgpu'&&adapter?.features.has('shader-f16')?'q4f16':'q4'};
   processor=await AutoProcessor.from_pretrained(MODEL,{revision:REVISION,progress_callback:data=>progress(id,data)});
-  model=await ChatterboxModel.from_pretrained(MODEL,{revision:REVISION,device,dtype,progress_callback:data=>progress(id,data)});
+  const configResponse=await fetch(`https://huggingface.co/${MODEL}/resolve/${REVISION}/config.json`);
+  if(!configResponse.ok)throw new Error('Chatterbox config could not be loaded.');
+  const config=await configResponse.json();
+  config.architectures=['ChatterboxModel'];
+  model=await ChatterboxModel.from_pretrained(MODEL,{revision:REVISION,config,device,dtype,progress_callback:data=>progress(id,data)});
   return {device,model:MODEL,revision:REVISION,dtype,exaggerationSupported:model.sessions.embed_tokens.inputNames.includes('exaggeration')};
 }
 async function run(message){
