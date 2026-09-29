@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "LEEWAY_AGENT_VOICE_BINDING_V1",
+  "authority": "4citeB4U/LeeWay-Voice-Fabric",
+  "rule": "Every created LeeWay agent or worker must receive a voice package binding.",
+  "required": [
+    "agentId",
+    "voicePackageId"
+  ],
+  "example": {
+    "agentId": "agent-lee",
+    "voicePackageId": "agent-lee-voice-one"
+  },
+  "creationFlow": [
+    "Agent/worker identity created",
+    "Voice Fabric catalog queried",
+    "Creator/policy selects voicePackageId",
+    "Binding persisted with agent configuration",
+    "Runtime resolves voicePackageId through Voice Fabric adapter"
+  ],
+  "noImplicitAgentLeeVoice": true,
+  "missingBindingState": "BLOCKED_VOICE_PACKAGE_REQUIRED"
+}
