@@ -1,0 +1,28 @@
+{
+  "schema": "leeway-runtime-fabric-voice-adapter/v1",
+  "capabilityId": "leeway.voice.speak",
+  "serviceAuthority": "4citeB4U/LeeWay-Voice-Fabric",
+  "requiredOperations": [
+    "prepare",
+    "speak",
+    "streamStart",
+    "streamChunk",
+    "streamEnd",
+    "stop"
+  ],
+  "requestEnvelope": {
+    "workId": "caller-owned stable work identity",
+    "threadId": "optional conversation/thread identity",
+    "voiceId": "defaults to agent-lee-voice-one",
+    "priority": "integer",
+    "text": "complete text or streamed fragments"
+  },
+  "cancellation": {
+    "voiceStop": "invalidates speech epoch and queued audio",
+    "upstreamWork": "MUST NOT be canceled by voiceStop"
+  },
+  "formula": {
+    "evaluation": "external-only",
+    "rule": "Do not invent Q69/F3/F4 states in this adapter. Route to centralized Formula authority only with authorized mapping/version."
+  }
+}
