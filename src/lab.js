@@ -2,7 +2,7 @@ import {voiceRegistry} from './voice-registry.js';
 const $=s=>document.querySelector(s),voice=new globalThis.LeeWayBrowserVoice();
 let selectedId='agent-lee-voice-one',packages=[];
 const log=(message,data)=>{$('#log').textContent+=`[${new Date().toLocaleTimeString()}] ${message}${data?' '+JSON.stringify(data):''}\n`;$('#log').scrollTop=$('#log').scrollHeight;};
-const state=message=>{$('#state').textContent=message;log(message);};
+const state=message=>{$('#state').textContent=message;const ready=$('#voiceReadyState');if(ready)ready.textContent=message;log(message);};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 async function refresh(){
  packages=(await voiceRegistry.list()).filter(p=>p.id==='agent-lee-voice-one'||p.source==='USER_LOCAL');if(!packages.some(p=>p.id===selectedId))selectedId='agent-lee-voice-one';
@@ -23,9 +23,8 @@ async function prepareSelected(){
  const pkg=await voiceRegistry.get(selectedId);if(!pkg)throw new Error('Select a voice package.');
  state(`Preparing ${pkg.name} automatically...`);await voice.load(()=>state('Loading Agent Lee Voice One...'));
  const blob=await voiceRegistry.audio(pkg.id);if(!blob)throw new Error('Voice reference audio unavailable.');
- await voice.setReference(blob);voice.exaggeration=Number(pkg.exaggeration);voice.setPace(pkg.pace);state(`Ready: ${pkg.name} on ${voice.device}`);
+ await voice.setReference(blob);voice.exaggeration=Number(pkg.exaggeration);voice.setPace(pkg.pace);state('Agent Lee Voice One ready.');
 }
-$('#prepare').onclick=()=>prepareSelected().catch(e=>state('ERROR: '+e.message));
 $('#stop').onclick=()=>{voice.stop();state('Stopped speaking.');};
 $('#delivery').onchange=e=>{voice.exaggeration=Number(e.target.value);state('Session delivery updated.');};
 $('#pace').oninput=e=>{$('#paceValue').value=Number(e.target.value).toFixed(2)+'×';voice.setPace(e.target.value);};
@@ -40,3 +39,20 @@ $('#deleteVoice').onclick=async()=>{try{await voiceRegistry.remove(selectedId);s
 $('#exportVoice').onclick=async()=>{try{const {metadata,audio}=await voiceRegistry.exportPackage(selectedId);const zipLike={...metadata,audioFile:'reference-audio (download separately)'};const meta=new Blob([JSON.stringify(zipLike,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(meta);a.download=`${metadata.id}.voice-package.json`;a.click();URL.revokeObjectURL(a.href);const b=document.createElement('a');b.href=URL.createObjectURL(audio);b.download=`${metadata.id}-reference`;b.click();setTimeout(()=>URL.revokeObjectURL(b.href),1000);state('Voice package export started.');}catch(e){state('ERROR: '+e.message);}};
 addEventListener('leeway-voice-metric',()=>{const last=globalThis.LeeWayVoiceMetrics.snapshot().at(-1);if(last)log(last.stage,last);});
 refresh().catch(e=>state('ERROR: '+e.message));
+const VOICE_ONE_GREETING='Agent Lee Voice One is active.';
+let audioAuthorized=false,greetingSpoken=false;
+async function authorizeVoiceAudio(){
+  if(audioAuthorized)return;
+  audioAuthorized=true;
+  try{
+    const ctx=await voice.audioContext();
+    if(ctx.state==='suspended')await ctx.resume();
+    state(voice.ready?'Agent Lee Voice One ready.':'Agent Lee Voice One loading automatically...');
+    if(voice.ready&&!greetingSpoken){
+      greetingSpoken=true;
+      await voice.speak(VOICE_ONE_GREETING,{onState:state});
+    }
+  }catch(e){state('Voice One audio activation blocked: '+e.message);}
+}
+addEventListener('pointerdown',authorizeVoiceAudio,{once:true});
+addEventListener('touchstart',authorizeVoiceAudio,{once:true,passive:true});
