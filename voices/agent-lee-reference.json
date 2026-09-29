@@ -1,0 +1,14 @@
+{
+  "identity": "Agent Lee",
+  "source_filename": "Agent_Voice_One.m4a",
+  "selection": "Voice One, explicitly selected by the user on September 27, 2026.",
+  "source_sha256": "4cba3163fa73b6a25633954f139cd979f654f3c2b502296775f8d8dae722bb7e",
+  "sha256": "638c88b332ecc7a21950511871c724f68f3eb566c59157e46493ee79ec55970e",
+  "sample_rate": 24000,
+  "channels": 1,
+  "duration_seconds": 15,
+  "source_offset_seconds": 3,
+  "bytes": 720078,
+  "processing": "Decoded to mono PCM 24 kHz. No pitch or speed change.",
+  "verification_boundary": "Source identity selected by the user. Chatterbox output similarity and live latency still require audition."
+}
