@@ -4,7 +4,7 @@
   const REVISION='3cab09af388d3f02bba43443fce88c1f4525ac43';
   const sourceURL=typeof document!=='undefined'?document.currentScript?.src:null;
   const DEFAULT_REFERENCE='https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav';
-  const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v=20260928-sampling1',sourceURL).href:'/src/chatterbox.worker.js?v=20260928-sampling1';
+  const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v=20260929-arch1',sourceURL).href:'/src/chatterbox.worker.js?v=20260928-sampling1';
   function aborted(){return new DOMException('Speech was stopped.','AbortError');}
   function chunks(text){
     const words=String(text).replace(/\s+/g,' ').trim().split(' '),result=[];let next='';
