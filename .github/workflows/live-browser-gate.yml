@@ -2,6 +2,15 @@ name: Voice Fabric Live Browser Gate
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'bridge.html'
+      - 'src/**'
+      - 'voices/**'
+      - 'tests/live-browser-gate.mjs'
+      - '.github/workflows/live-browser-gate.yml'
 
 jobs:
   verify-browser-catalog:
@@ -9,6 +18,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Wait for Pages propagation
+        run: sleep 30
       - name: Install browser test dependency
         run: npm install --no-save playwright@1.55.0
       - name: Install Chromium
