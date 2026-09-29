@@ -1,6 +1,6 @@
 const BASE=process.env.VOICE_FABRIC_URL||'https://4citeb4u.github.io/LeeWay-Voice-Fabric';
 const checks=[
-  ['/', ['LeeWay Voice Fabric','Voice packages','Create voice package','Prepare selected voice','Simulate streamed answer']],
+  ['/', ['LeeWay Voice Fabric','Agent Lee Voice','Voice One loading automatically','Create voice package','Simulate streamed answer']],
   ['/src/voice-sdk.js', ['listVoices()','selectVoice(voicePackageId)','streamStart']],
   ['/src/voice-registry.js', ['LeeWayVoiceRegistry','indexedDB','BUILTIN_VOICE_PACKAGES']],
   ['/voices/catalog.v1.json', ['agent-lee-voice-one','chatterbox-default-natural','DEFAULT_FOR_NEW_AGENT_OR_WORKER']]
@@ -16,6 +16,7 @@ for(const [path,needles] of checks){
     if(!text.includes(needle)){console.error('CONTENT_FAIL',url,needle);failed=true;}
     else console.log('CONTENT_PASS',url,needle);
   }
+  if(path==='/'&&text.includes('Prepare selected voice')){console.error('CONTENT_FAIL',url,'manual prepare control still present');failed=true;}
 }
 if(failed)process.exit(1);
 console.log('LIVE_PAGES_CONTENT=PASS');
