@@ -1,0 +1,57 @@
+{
+  "schema": "leeway-voice-fabric/v1",
+  "authority": "4citeB4U/LeeWay-Voice-Fabric",
+  "defaultVoice": "agent-lee-voice-one",
+  "transport": [
+    "iframe-postMessage",
+    "direct-browser",
+    "runtime-fabric-adapter"
+  ],
+  "commands": {
+    "ping": {},
+    "prepare": {
+      "provider": "optional"
+    },
+    "configure": {
+      "pace": "number",
+      "exaggeration": "number",
+      "provider": "string"
+    },
+    "setReference": {
+      "audio": "ArrayBuffer"
+    },
+    "speak": {
+      "text": "string"
+    },
+    "streamStart": {
+      "streamId": "string"
+    },
+    "streamChunk": {
+      "streamId": "string",
+      "text": "string"
+    },
+    "streamEnd": {
+      "streamId": "string"
+    },
+    "stop": {},
+    "dispose": {},
+    "metrics": {}
+  },
+  "events": [
+    "ready",
+    "state",
+    "prepared",
+    "rendered",
+    "stopped",
+    "metrics",
+    "error"
+  ],
+  "invariants": [
+    "voice identity independent of reasoning model",
+    "one audible lane",
+    "stop voice without canceling upstream reasoning",
+    "bounded queue",
+    "ordered text",
+    "stale audio suppressed after interruption"
+  ]
+}
