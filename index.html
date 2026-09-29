@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LeeWay Voice Fabric</title>
+<style>body{font:16px system-ui;background:#07111d;color:#edf7ff;max-width:900px;margin:auto;padding:24px}textarea{width:100%;min-height:140px}button,input,select,textarea{font:inherit;margin:6px 0;padding:10px;border-radius:8px;border:1px solid #345;background:#0d2033;color:#fff}button{margin-right:8px}.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}.card{border:1px solid #23445e;border-radius:14px;padding:18px;margin:16px 0;background:#0a1826}small{color:#9db5c9}pre{white-space:pre-wrap}</style></head>
+<body><h1>LeeWay Voice Fabric</h1><p>One voice boundary for the LeeWay ecosystem. Default identity: <strong>Agent Lee · Voice One</strong>.</p>
+<div class="card"><div class="row"><button id="prepare">Prepare Voice One</button><button id="stop">Stop</button><span id="state">Not prepared</span></div>
+<label>Delivery <select id="delivery"><option value=".15">Very calm</option><option value=".25" selected>Calm</option><option value=".5">Natural</option><option value=".7">Lively</option></select></label>
+<label>Pace <input id="pace" type="range" min=".85" max="1.3" value="1.1" step=".05"><output id="paceValue">1.10×</output></label>
+<label>Try another owned voice reference <input id="reference" type="file" accept="audio/*"></label></div>
+<div class="card"><textarea id="text">This is Agent Lee Voice One speaking through the LeeWay Voice Fabric.</textarea><div><button id="speak">Speak</button><button id="stream">Simulate streamed answer</button></div></div>
+<div class="card"><strong>Local timing / state</strong><pre id="log"></pre></div>
+<script src="src/browser-voice.js"></script><script src="src/speech-pipeline.js"></script><script type="module" src="src/lab.js"></script></body></html>
