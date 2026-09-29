@@ -1,0 +1,23 @@
+name: Voice Fabric Live Pages Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'bridge.html'
+      - 'src/**'
+      - 'voices/**'
+      - 'tests/live-pages-check.mjs'
+      - '.github/workflows/live-pages-gate.yml'
+
+jobs:
+  verify-live-pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for Pages propagation
+        run: sleep 25
+      - name: Verify deployed Voice Fabric surface
+        run: node tests/live-pages-check.mjs
