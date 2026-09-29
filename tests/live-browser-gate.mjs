@@ -13,13 +13,8 @@ try{
   const labels=await page.locator('.voice-item').allTextContents();
   console.log('VOICE_ITEMS',JSON.stringify(labels));
   must(labels.some(x=>x.includes('Agent Lee · Voice One')),'Agent Lee Voice One rendered');
-  must(labels.some(x=>x.includes('Chatterbox Default · Calm')),'Chatterbox Calm rendered');
-  must(labels.some(x=>x.includes('Chatterbox Default · Natural')),'Chatterbox Natural rendered');
-  must(labels.some(x=>x.includes('Chatterbox Default · Lively')),'Chatterbox Lively rendered');
-
-  await page.locator('.voice-item',{hasText:'Chatterbox Default · Natural'}).click();
-  await page.waitForFunction(()=>document.querySelector('#selectedTitle')?.textContent?.includes('Chatterbox Default · Natural'),null,{timeout:10000});
-  must((await page.locator('#selectedTitle').textContent())?.includes('Chatterbox Default · Natural'),'UI selects Chatterbox Natural');
+  must(labels.length===1,'Creator-facing UI exposes exactly one canonical built-in voice');
+  must(!labels.some(x=>x.includes('Chatterbox Default')),'Provider delivery profiles are hidden from Creator-facing voice list');
 
   await page.locator('.voice-item',{hasText:'Agent Lee · Voice One'}).click();
   await page.waitForFunction(()=>document.querySelector('#selectedTitle')?.textContent?.includes('Agent Lee · Voice One'),null,{timeout:10000});
