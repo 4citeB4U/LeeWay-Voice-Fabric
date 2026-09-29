@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "LEEWAY_CREATOR_READ_ALOUD_BINDING_V1",
+  "creatorFacingPolicy": {
+    "leewayOwnedAgentLeeSurface": {
+      "requiredVoicePackageId": "agent-lee-voice-one",
+      "fallback": "VOICE_UNAVAILABLE"
+    },
+    "chatgptNativeSurface": {
+      "authority": "ChatGPT client native voice/read-aloud",
+      "fallback": "NO_LEEWAY_SUBSTITUTION"
+    }
+  },
+  "forbiddenFallbacks": [
+    "windows-system-speech",
+    "browser-default-speech-synthesis",
+    "chatterbox-default-profile-for-agent-lee",
+    "unrelated-provider-voice"
+  ]
+}
