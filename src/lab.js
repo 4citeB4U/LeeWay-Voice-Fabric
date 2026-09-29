@@ -11,7 +11,7 @@ async function refresh(){
  if(selectedId)await select(selectedId,false);state(`${packages.length} voice package${packages.length===1?'':'s'} available`);
 }
 async function select(id,rerender=true){
- const pkg=await voiceRegistry.get(id);if(!pkg)throw new Error('Voice package not found.');selectedId=id;
+ const pkg=packages.find(p=>p.id===id)||await voiceRegistry.get(id);if(!pkg)throw new Error('Voice package not found.');selectedId=id;
  if(rerender){document.querySelectorAll('.voice-item').forEach(b=>b.classList.toggle('active',b.dataset.id===id));}
  $('#selectedTitle').textContent=pkg.name;$('#selectedMeta').textContent=`${pkg.owner} · ${pkg.provider} · ${pkg.id}`;
  $('#delivery').value=String(pkg.exaggeration);$('#pace').value=String(pkg.pace);$('#paceValue').value=Number(pkg.pace).toFixed(2)+'×';
