@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "authority": "4citeB4U/LeeWay-Voice-Fabric",
+  "note": "Versioned packages available to any LeeWay runtime. Browser-local packages created in the UI are merged at runtime from the Voice Fabric origin and are not cross-device until promoted.",
+  "packages": [
+    {
+      "id": "agent-lee-voice-one",
+      "name": "Agent Lee · Voice One",
+      "owner": "Agent Lee",
+      "provider": "chatterbox",
+      "packageType": "CLONED_REFERENCE",
+      "referenceAuthority": "4citeB4U/RapidWebDev",
+      "referenceUrl": "https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav",
+      "referenceSha256": "638c88b332ecc7a21950511871c724f68f3eb566c59157e46493ee79ec55970e",
+      "pace": 1.1,
+      "exaggeration": 0.25,
+      "assignmentPolicy": "EXPLICIT_AGENT_LEE_ONLY"
+    },
+    {
+      "id": "chatterbox-default-calm",
+      "name": "Chatterbox Default · Calm",
+      "owner": "LeeWay Shared Voice Pool",
+      "provider": "chatterbox",
+      "packageType": "CHATTERBOX_DEFAULT_PROFILE",
+      "referenceUrl": "https://huggingface.co/onnx-community/chatterbox-ONNX/resolve/main/default_voice.wav",
+      "pace": 1,
+      "exaggeration": 0.2,
+      "assignmentPolicy": "AVAILABLE_TO_ANY_AGENT_OR_WORKER"
+    },
+    {
+      "id": "chatterbox-default-natural",
+      "name": "Chatterbox Default · Natural",
+      "owner": "LeeWay Shared Voice Pool",
+      "provider": "chatterbox",
+      "packageType": "CHATTERBOX_DEFAULT_PROFILE",
+      "referenceUrl": "https://huggingface.co/onnx-community/chatterbox-ONNX/resolve/main/default_voice.wav",
+      "pace": 1,
+      "exaggeration": 0.5,
+      "assignmentPolicy": "DEFAULT_FOR_NEW_AGENT_OR_WORKER"
+    },
+    {
+      "id": "chatterbox-default-lively",
+      "name": "Chatterbox Default · Lively",
+      "owner": "LeeWay Shared Voice Pool",
+      "provider": "chatterbox",
+      "packageType": "CHATTERBOX_DEFAULT_PROFILE",
+      "referenceUrl": "https://huggingface.co/onnx-community/chatterbox-ONNX/resolve/main/default_voice.wav",
+      "pace": 1.08,
+      "exaggeration": 0.7,
+      "assignmentPolicy": "AVAILABLE_TO_ANY_AGENT_OR_WORKER"
+    }
+  ]
+}
