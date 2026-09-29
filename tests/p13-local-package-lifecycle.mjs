@@ -20,7 +20,8 @@ function wavBuffer(){
 const id='p13-local-voice-'+Date.now();
 const name='P1.3 Local Voice';
 try{
-  await page.goto(BASE,{waitUntil:'networkidle',timeout:120000});
+  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:60000});
+  await page.waitForSelector('#saveVoice',{timeout:30000});
   await page.fill('#newId',id);
   await page.fill('#newName',name);
   await page.fill('#newOwner','P1.3 Browser Gate');
@@ -29,7 +30,8 @@ try{
   await page.waitForFunction(expected=>document.querySelector('#selectedTitle')?.textContent===expected,name,{timeout:15000});
   must((await page.locator('#selectedTitle').textContent())===name,'UI saves and selects local voice package');
 
-  await page.reload({waitUntil:'networkidle'});
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.waitForSelector('.voice-item',{timeout:30000});
   await page.waitForSelector('.voice-item',{timeout:30000});
   const labels=await page.locator('.voice-item').allTextContents();
   must(labels.some(x=>x.includes(name)&&x.includes(id)),'Reload rediscovers saved local package');
