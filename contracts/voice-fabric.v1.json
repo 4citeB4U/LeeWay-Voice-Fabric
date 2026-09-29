@@ -1,14 +1,34 @@
 {
-  "schema": "leeway-voice-fabric/v1",
+  "schema": "leeway-voice-fabric/v2",
   "authority": "4citeB4U/LeeWay-Voice-Fabric",
+  "purpose": "canonical multi-agent voice package registry and speech service",
   "defaultVoice": "agent-lee-voice-one",
   "transport": [
     "iframe-postMessage",
     "direct-browser",
     "runtime-fabric-adapter"
   ],
+  "voicePackage": {
+    "required": [
+      "id",
+      "name",
+      "owner",
+      "provider",
+      "pace",
+      "exaggeration"
+    ],
+    "reference": "versioned URL or Voice Fabric origin IndexedDB blob",
+    "bindingRule": "Every LeeWay agent or worker must have an explicit voicePackageId. Agent Lee Voice One is not the universal default for other agents."
+  },
   "commands": {
     "ping": {},
+    "listVoices": {},
+    "getVoice": {
+      "voicePackageId": "string"
+    },
+    "selectVoice": {
+      "voicePackageId": "string"
+    },
     "prepare": {
       "provider": "optional"
     },
@@ -37,21 +57,13 @@
     "dispose": {},
     "metrics": {}
   },
-  "events": [
-    "ready",
-    "state",
-    "prepared",
-    "rendered",
-    "stopped",
-    "metrics",
-    "error"
-  ],
   "invariants": [
-    "voice identity independent of reasoning model",
+    "voice package identity independent of reasoning model",
     "one audible lane",
     "stop voice without canceling upstream reasoning",
     "bounded queue",
     "ordered text",
-    "stale audio suppressed after interruption"
+    "stale audio suppressed after interruption",
+    "voice ownership is explicit per agent or worker"
   ]
 }
