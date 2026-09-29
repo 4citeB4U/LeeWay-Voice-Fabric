@@ -1,0 +1,62 @@
+{
+  "receiptId": "LEEWAY-VOICE-FABRIC-BOOTSTRAP-20260928",
+  "repository": "4citeB4U/LeeWay-Voice-Fabric",
+  "testedSourceCommit": "eb2c3fe60b23258d3250325c1a2ba2b1dbc72bbe",
+  "pages": {
+    "status": "BUILT",
+    "url": "https://4citeb4u.github.io/LeeWay-Voice-Fabric/",
+    "source": "main:/",
+    "httpsEnforced": true
+  },
+  "liveBrowser": {
+    "pageRendered": true,
+    "title": "LeeWay Voice Fabric",
+    "controls": [
+      "Prepare Voice One",
+      "Stop",
+      "Delivery",
+      "Pace",
+      "custom reference",
+      "Speak",
+      "Simulate streamed answer"
+    ],
+    "sdkBridgePing": {
+      "status": "PASS",
+      "response": {
+        "version": "1.0.0"
+      }
+    }
+  },
+  "deterministicTests": {
+    "command": "node --test tests/speech-pipeline.test.cjs",
+    "total": 8,
+    "pass": 8,
+    "fail": 0,
+    "exitCode": 0,
+    "syntaxChecks": {
+      "src/voice-sdk.js": 0,
+      "src/bridge-runtime.js": 0,
+      "src/browser-voice.js": 0,
+      "src/speech-pipeline.js": 0,
+      "src/chatterbox.worker.js": 0,
+      "src/lab.js": 0
+    }
+  },
+  "voiceOne": {
+    "provenanceManifest": "voices/agent-lee-reference.json",
+    "expectedSha256": "638c88b332ecc7a21950511871c724f68f3eb566c59157e46493ee79ec55970e",
+    "runtimeSource": "https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav",
+    "binaryCopiedIntoNewRepo": false,
+    "status": "VERIFIED_SOURCE_REFERENCE_USED; BINARY_MIGRATION_OPEN"
+  },
+  "formula": {
+    "evaluation": "NOT_EXECUTED",
+    "reason": "No authorized voice-measurement-to-canonical-Formula mapping/evaluator execution was used during repository bootstrap."
+  },
+  "openGates": [
+    "Full Chatterbox model load on published Voice Fabric page not executed in this bootstrap.",
+    "Acoustic Voice One quality on the new Pages origin not physically auditioned.",
+    "Voice One WAV binary migration into the new repository remains open; runtime points to the verified RapidWebDev source artifact.",
+    "Runtime Fabric and application adapters are contracts only until each caller is migrated and tested."
+  ]
+}
