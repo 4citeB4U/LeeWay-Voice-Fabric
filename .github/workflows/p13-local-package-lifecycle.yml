@@ -1,0 +1,24 @@
+name: Voice P1.3 Local Package Lifecycle
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/lab.js'
+      - 'src/voice-registry.js'
+      - 'tests/p13-local-package-lifecycle.mjs'
+      - '.github/workflows/p13-local-package-lifecycle.yml'
+jobs:
+  verify-local-package-lifecycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for Pages propagation
+        run: sleep 30
+      - name: Install Playwright
+        run: npm install --no-save playwright@1.55.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify production local package lifecycle
+        run: node tests/p13-local-package-lifecycle.mjs
