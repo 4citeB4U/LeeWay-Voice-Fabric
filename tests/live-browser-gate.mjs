@@ -18,9 +18,11 @@ try{
   must(labels.some(x=>x.includes('Chatterbox Default · Lively')),'Chatterbox Lively rendered');
 
   await page.locator('.voice-item',{hasText:'Chatterbox Default · Natural'}).click();
+  await page.waitForFunction(()=>document.querySelector('#selectedTitle')?.textContent?.includes('Chatterbox Default · Natural'),null,{timeout:10000});
   must((await page.locator('#selectedTitle').textContent())?.includes('Chatterbox Default · Natural'),'UI selects Chatterbox Natural');
 
   await page.locator('.voice-item',{hasText:'Agent Lee · Voice One'}).click();
+  await page.waitForFunction(()=>document.querySelector('#selectedTitle')?.textContent?.includes('Agent Lee · Voice One'),null,{timeout:10000});
   must((await page.locator('#selectedTitle').textContent())?.includes('Agent Lee · Voice One'),'UI selects Agent Lee Voice One');
 
   const sdk=await page.evaluate(async base=>{
