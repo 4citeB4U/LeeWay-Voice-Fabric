@@ -5,10 +5,10 @@ const log=(message,data)=>{$('#log').textContent+=`[${new Date().toLocaleTimeStr
 const state=message=>{$('#state').textContent=message;log(message);};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
 async function refresh(){
- packages=await voiceRegistry.list();if(!packages.some(p=>p.id===selectedId))selectedId=packages[0]?.id||'';
+ packages=(await voiceRegistry.list()).filter(p=>p.id==='agent-lee-voice-one'||p.source==='USER_LOCAL');if(!packages.some(p=>p.id===selectedId))selectedId='agent-lee-voice-one';
  $('#voiceList').innerHTML=packages.map(p=>`<button class="voice-item ${p.id===selectedId?'active':''}" data-id="${esc(p.id)}"><strong>${esc(p.name)}</strong><small>${esc(p.owner)} · ${esc(p.source)} · ${esc(p.id)}</small></button>`).join('');
  document.querySelectorAll('.voice-item').forEach(b=>b.onclick=()=>select(b.dataset.id));
- if(selectedId)await select(selectedId,false);state(`${packages.length} voice package${packages.length===1?'':'s'} available`);
+ if(selectedId)await select(selectedId,false);state('Agent Lee Voice One selected. Preparing automatically...');prepareSelected().catch(e=>state('ERROR: '+e.message));
 }
 async function select(id,rerender=true){
  const pkg=packages.find(p=>p.id===id)||await voiceRegistry.get(id);if(!pkg)throw new Error('Voice package not found.');selectedId=id;
@@ -21,7 +21,7 @@ async function select(id,rerender=true){
 }
 async function prepareSelected(){
  const pkg=await voiceRegistry.get(selectedId);if(!pkg)throw new Error('Select a voice package.');
- state(`Preparing ${pkg.name}...`);await voice.load(p=>state(p.message||p.status||'Preparing voice engine...'));
+ state(`Preparing ${pkg.name} automatically...`);await voice.load(()=>state('Loading Agent Lee Voice One...'));
  const blob=await voiceRegistry.audio(pkg.id);if(!blob)throw new Error('Voice reference audio unavailable.');
  await voice.setReference(blob);voice.exaggeration=Number(pkg.exaggeration);voice.setPace(pkg.pace);state(`Ready: ${pkg.name} on ${voice.device}`);
 }
