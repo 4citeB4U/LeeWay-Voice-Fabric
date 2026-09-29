@@ -1,0 +1,21 @@
+{
+  "schema": "leeway-voice-measurements/v1",
+  "status": "CANDIDATE_MEASUREMENT_CONTRACT_NOT_CANONICAL_FORMULA_INPUT",
+  "measurements": {
+    "firstAudioMs": "time from first accepted text to playback request/start when observable",
+    "synthesisMs": "provider synthesis duration",
+    "playbackGapMs": "gap between audible segment requests/events",
+    "interruptionSpillMs": "software time from stop request to local playback cancellation event",
+    "queueChars": "buffered text characters",
+    "audioSeconds": "generated waveform duration",
+    "realtimeFactor": "synthesisSeconds/audioSeconds"
+  },
+  "invariants": [
+    "ordered_words",
+    "no_dropped_words",
+    "bounded_queue",
+    "stale_audio_suppressed",
+    "voice_identity_provenance_present"
+  ],
+  "formulaBoundary": "Only an authorized adapter may map these measurements into canonical Formula input. Without verified evaluator + mapping, FORMULA EVALUATION = NOT EXECUTED."
+}
