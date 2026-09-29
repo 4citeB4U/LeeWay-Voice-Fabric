@@ -1,0 +1,17 @@
+name: Voice Fabric Live Browser Gate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify-browser-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser test dependency
+        run: npm install --no-save playwright@1.55.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Verify live production catalog and SDK selection
+        run: node tests/live-browser-gate.mjs
