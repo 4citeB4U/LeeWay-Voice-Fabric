@@ -32,6 +32,9 @@ export class LeeWayVoiceClient {
       this.frame.contentWindow.postMessage({scope:'leeway.voice.v1',token:this.token,id,command,data},new URL(this.origin).origin,transfer);
     });
   }
+  listVoices(){return this.call('listVoices');}
+  getVoice(voicePackageId){return this.call('getVoice',{voicePackageId:String(voicePackageId)});}
+  selectVoice(voicePackageId){return this.call('selectVoice',{voicePackageId:String(voicePackageId)});}
   prepare(provider){return this.call('prepare',{provider});}
   configure(options){return this.call('configure',options);}
   speak(text){return this.call('speak',{text:String(text)});}
