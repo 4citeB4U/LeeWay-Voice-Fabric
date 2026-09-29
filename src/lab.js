@@ -24,6 +24,7 @@ async function prepareSelected(){
  state(`Preparing ${pkg.name} automatically...`);await voice.load(()=>state('Loading Agent Lee Voice One...'));
  const blob=await voiceRegistry.audio(pkg.id);if(!blob)throw new Error('Voice reference audio unavailable.');
  await voice.setReference(blob);voice.exaggeration=Number(pkg.exaggeration);voice.setPace(pkg.pace);state('Agent Lee Voice One ready.');
+ if(audioAuthorized&&!greetingSpoken){greetingSpoken=true;await voice.speak(VOICE_ONE_GREETING,{onState:state});}
 }
 $('#stop').onclick=()=>{voice.stop();state('Stopped speaking.');};
 $('#delivery').onchange=e=>{voice.exaggeration=Number(e.target.value);state('Session delivery updated.');};
