@@ -3,7 +3,7 @@ LEEWAY
 REGION: VOICE.ANDROID.BRIDGE
 TAG: VOICE.FABRIC.ANDROID.NATIVE_ADAPTER
 WHAT: Narrow Android/WebView adapter for canonical Voice One
-WHY: Give Pocket Agent a governed voice route without Android TextToSpeech fallback
+WHY: Give Pocket Agent a governed voice route without Android system speech fallback
 WHO: LeeWay Industries / Agent Lee / Creator
 WHERE: LeeWay Voice Fabric
 WHEN: 2026-09-29
