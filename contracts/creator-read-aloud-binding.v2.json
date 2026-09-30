@@ -2,7 +2,7 @@
   "schemaVersion": "2.0.0",
   "id": "LEEWAY_CREATOR_READ_ALOUD_BINDING_V2",
   "supersedes": "contracts/creator-read-aloud-binding.v1.json",
-  "creatorAuthorization": "2026-09-30 explicit request for automatic Samsung read-aloud on the qualified Android secondary workstation",
+  "creatorAuthorization": "2026-09-30 explicit Creator directive: automatic read-aloud on the qualified Android secondary workstation must use the canonical Agent Lee cloned voice path, agent-lee-voice-one, matching the prepared-text/streaming host pattern used with Codex; Samsung/Google/system TTS is not an Agent Lee substitute.",
   "creatorFacingPolicy": {
     "leewayOwnedAgentLeeSurface": {
       "requiredVoicePackageId": "agent-lee-voice-one",
@@ -21,6 +21,14 @@
         "identity": "SAMSUNG_SYSTEM_TTS_ACCESSIBILITY_NOT_AGENT_LEE_VOICE_ONE",
         "automaticAfterReplyAllowed": true
       }
+    },
+    "androidSecondaryWorkstation": {
+      "requiredVoicePackageId": "agent-lee-voice-one",
+      "renderer": "LeeWay Voice Fabric Android WebView bridge",
+      "delivery": "PHRASE_STREAMING",
+      "stop": "STOP_AND_MUTE_SPEECH_ONLY",
+      "resume": "ENABLE_FUTURE_SPEECH_DO_NOT_REPLAY_DISCARDED_AUDIO",
+      "fallback": "VOICE_UNAVAILABLE"
     }
   },
   "invariants": [
@@ -34,6 +42,9 @@
     "windows-system-speech-mislabeled-as-agent-lee",
     "browser-default-speech-synthesis-mislabeled-as-agent-lee",
     "samsung-system-tts-mislabeled-as-agent-lee",
-    "unrelated-provider-voice-mislabeled-as-agent-lee"
+    "unrelated-provider-voice-mislabeled-as-agent-lee",
+    "samsung-system-tts-for-agent-lee",
+    "google-system-tts-for-agent-lee",
+    "espeak-for-agent-lee"
   ]
 }
