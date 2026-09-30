@@ -1,0 +1,25 @@
+<!doctype html>
+<!--
+LEEWAY
+REGION: VOICE.ANDROID.BRIDGE
+TAG: VOICE.FABRIC.ANDROID.WEBVIEW
+WHAT: Minimal WebView host for canonical Agent Lee Voice One
+WHY: Let authorized Android clients use Voice Fabric without substituting system TTS
+WHO: LeeWay Industries / Agent Lee / Creator
+WHERE: LeeWay Voice Fabric GitHub Pages
+WHEN: 2026-09-29
+HOW: Browser Chatterbox runtime + Voice One package + narrow native callback boundary
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LeeWay Voice Fabric Android Bridge</title>
+</head>
+<body>
+<p id="state" hidden>BOOTING</p>
+<script src="src/browser-voice.js"></script>
+<script src="src/speech-pipeline.js"></script>
+<script type="module" src="src/android-bridge.js"></script>
+</body>
+</html>
