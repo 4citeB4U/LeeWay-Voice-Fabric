@@ -9,7 +9,7 @@ on:
       - 'src/android-bridge.js'
       - 'src/browser-voice.js'
       - 'src/voice-registry.js'
-      - 'tests/android-bridge.test.cjs'
+      - 'tests/**'
       - '.github/workflows/android-pocket-voice-bridge.yml'
 
 jobs:
