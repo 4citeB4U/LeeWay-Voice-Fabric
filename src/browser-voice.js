@@ -87,6 +87,8 @@
         await this.audioContext();if(lifecycle!==this.lifecycle)throw aborted();
         onProgress({status:'initiate',file:'Chatterbox voice',total:LeeWayBrowserVoice.download.webgpuBytes});
         const result=await this.request('load',{device:this.options.device},onProgress);if(lifecycle!==this.lifecycle)throw aborted();this.device=result.device;
+        this.capabilities={exaggeration:result.exaggerationSupported!==false,temperature:true,topK:true,topP:false};
+        if(this.options.skipDefaultReference){this.ready=true;onProgress({status:'ready',device:this.device});return result;}
         onProgress({message:"Preparing Agent Lee's voice reference..."});
         const response=await fetch(DEFAULT_REFERENCE);if(!response.ok)throw new Error('Default voice reference could not be downloaded.');
         const blob=await response.blob();if(lifecycle!==this.lifecycle)throw aborted();
@@ -97,13 +99,14 @@
     }
     // Use an owned/licensed reference. Audio is decoded locally; it is not uploaded.
     async setReference(blob){
-      const lifecycle=this.lifecycle;this.stop();
+      const lifecycle=this.lifecycle;this.stop();const epoch=this.epoch;
       if(!blob||blob.size>15_000_000)throw new Error('Choose a voice clip smaller than 15 MB.');
       const context=await this.audioContext(),decoded=await context.decodeAudioData(await blob.arrayBuffer());
+      if(lifecycle!==this.lifecycle||epoch!==this.epoch)throw aborted();
       if(decoded.duration>30||decoded.duration<1)throw new Error('Choose a clear voice reference between 1 and 30 seconds.');
       const offline=new OfflineAudioContext(1,Math.ceil(decoded.duration*24000),24000),source=offline.createBufferSource();
       source.buffer=decoded;source.connect(offline.destination);source.start();const mono=await offline.startRendering();
-      if(lifecycle!==this.lifecycle)throw aborted();
+      if(lifecycle!==this.lifecycle||epoch!==this.epoch)throw aborted();
       const data=mono.getChannelData(0).slice();await this.request('speaker',{audio:data.buffer},null,[data.buffer]);
     }
     async speak(text,{signal,onState=()=>{}}={}){
@@ -143,7 +146,7 @@
         this.finishPlayback.add(finish);media.onplaying=()=>root.LeeWayVoiceMetrics?.record('playback-start');media.onended=()=>finish();media.onerror=()=>finish(new Error('Browser audio playback failed.'));media.play().catch(finish);
       });
     }
-    setPace(value){this.playbackRate=Math.max(.85,Math.min(1.3,Number(value)||1.22));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
+    setPace(value){this.playbackRate=Math.max(.6,Math.min(1.6,Number(value)||1.22));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
     stop(){
       ++this.epoch;this.worker?.postMessage({type:'stop',epoch:this.epoch});
       for(const source of this.sources){try{source.stop()}catch{}}

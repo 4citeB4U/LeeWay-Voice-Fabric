@@ -4,7 +4,7 @@ function setup(){
  const scope={performance,DOMException,AbortController,Event,setTimeout,clearTimeout,URL,console};vm.createContext(scope);
  for(const file of ['browser-voice.js','speech-pipeline.js'])vm.runInContext(fs.readFileSync(__dirname+'/../src/'+file,'utf8'),scope);
  const voice=new scope.LeeWayBrowserVoice();voice.ready=true;
- return {voice,Stream:scope.LeeWaySpeechStream,metrics:scope.LeeWayVoiceMetrics};
+ return {voice,scope,Stream:scope.LeeWaySpeechStream,metrics:scope.LeeWayVoiceMetrics};
 }
 test('first complete clause reaches synthesis before model completion',async()=>{
  const {voice,Stream}=setup(),stream=new Stream(),requests=[];voice.request=async(type,data)=>{requests.push(data.text);return {}};voice.play=async()=>{};
@@ -83,6 +83,22 @@ test('direct speech prepares one following sentence during playback and stops pe
 
 test('browser voice uses the requested twenty-two percent faster pace by default',()=>{
  const {voice}=setup();assert.equal(voice.playbackRate,1.22);voice.setPace(1.2);assert.equal(voice.playbackRate,1.2);voice.setPace('invalid');assert.equal(voice.playbackRate,1.22);
+});
+
+test('a cancelled slow reference cannot overwrite a newly selected speaker',async()=>{
+ const {voice,scope}=setup();let releaseOld;
+ const oldDecoded=new Promise(resolve=>releaseOld=resolve),encoded=[];
+ voice.audioContext=async()=>({decodeAudioData:async buffer=>new Uint8Array(buffer)[0]===1?oldDecoded:{duration:2,marker:2}});
+ scope.OfflineAudioContext=class{
+  createBufferSource(){return this.source={connect(){},start(){}};}
+  async startRendering(){return {getChannelData:()=>new Float32Array([this.source.buffer.marker])};}
+ };
+ voice.request=async(type,data)=>{encoded.push(new Float32Array(data.audio)[0]);};
+ const old=voice.setReference(new Blob([new Uint8Array([1])]));
+ const rejected=assert.rejects(old,{name:'AbortError'});await tick();
+ await voice.setReference(new Blob([new Uint8Array([2])]));
+ releaseOld({duration:2,marker:1});await rejected;
+ assert.deepEqual(encoded,[2]);
 });
 
 test('lab delivery adjustments made during preparation survive async loading',async()=>{

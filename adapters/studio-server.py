@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+"""Optional loopback studio server; Python standard library only.
+
+RESEMBLE_API_KEY stays server-side. Hosted calls require the developer's account.
+Reference: https://docs.resemble.ai/voice-creation/voices/list
+Reference: https://docs.resemble.ai/api-reference/text-to-speech/synthesize
+The current API reference specifies Bearer authentication and voice-selected model.
+"""
+import argparse
+import base64
+import json
+import os
+from pathlib import Path
+import re
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, unquote, urlencode, urlsplit
+from urllib.request import Request, urlopen
+
+MAX_BODY = 32 * 1024
+MAX_PROVIDER_RESPONSE = 24 * 1024 * 1024
+VOICE_ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
+
+
+class ProviderError(Exception):
+    pass
+
+
+def provider_request(url, key, payload=None):
+    headers = {"Authorization": "Bearer " + key, "Accept": "application/json"}
+    data = None
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    try:
+        with urlopen(Request(url, data=data, headers=headers), timeout=90) as response:
+            raw = response.read(MAX_PROVIDER_RESPONSE + 1)
+        if len(raw) > MAX_PROVIDER_RESPONSE:
+            raise ProviderError("Provider response exceeded the size limit.")
+        result = json.loads(raw)
+        if not isinstance(result, dict) or result.get("success") is False:
+            raise ProviderError("Provider could not complete this request.")
+        return result
+    except HTTPError as exc:
+        # Never forward provider bodies, URLs with query strings, or credentials.
+        if exc.code in (401, 403):
+            raise ProviderError("Provider authentication or access failed.") from None
+        if exc.code == 429:
+            raise ProviderError("Provider rate limit reached. Try again later.") from None
+        raise ProviderError("Provider request failed.") from None
+    except (URLError, TimeoutError, OSError, ValueError):
+        raise ProviderError("Provider request failed or returned invalid data.") from None
+
+
+def safe_text(value, fallback="", limit=500):
+    return value[:limit] if isinstance(value, str) else fallback
+
+
+def voice_metadata(item):
+    if not isinstance(item, dict):
+        return None
+    uuid = item.get("uuid")
+    if not isinstance(uuid, str) or not VOICE_ID.fullmatch(uuid):
+        return None
+    preview = item.get("sample_url") or item.get("preview_url") or ""
+    try:
+        valid_preview = isinstance(preview, str) and urlsplit(preview).scheme == "https" and bool(urlsplit(preview).hostname)
+    except ValueError:
+        valid_preview = False
+    if not valid_preview:
+        preview = ""
+    return {
+        "id": "resemble-" + uuid,
+        "name": safe_text(item.get("name"), "Resemble voice " + uuid, 160),
+        "owner": "Resemble AI", "provider": "resemble", "voiceUuid": uuid,
+        "gender": safe_text(item.get("gender"), "unspecified", 40),
+        "previewUrl": preview, "source": "RESEMBLE_HOSTED",
+        "packageType": "HOSTED_VOICE", "pace": 1, "exaggeration": 0.5,
+        "description": safe_text(item.get("description")),
+    }
+
+
+class StudioHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *_args):
+        # Paths/query strings and provider text must not become server logs.
+        pass
+
+    def _json(self, code, payload):
+        body = json.dumps(payload).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        origin = getattr(self, "_approved_origin", None)
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
+    def _guard(self, api=False):
+        port = self.server.server_address[1]
+        hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
+        if port == 80:
+            hosts.update(("127.0.0.1", "localhost"))
+        host = self.headers.get("Host", "").lower()
+        if host not in hosts:
+            self._json(403, {"error": "Invalid local Host header."})
+            return False
+        if api:
+            origin = self.headers.get("Origin")
+            allowed = {"http://" + host}
+            allowed.update(x.strip() for x in os.environ.get("LEEWAY_ALLOWED_ORIGINS", "").split(",")
+                           if x.strip() and x.strip() != "*")
+            if origin and origin not in allowed:
+                self._json(403, {"error": "Origin is not allowed."})
+                return False
+            self._approved_origin = origin
+        return True
+
+    def _key(self):
+        key = os.environ.get("RESEMBLE_API_KEY", "").strip()
+        if not key:
+            self._json(503, {"configured": False, "error": "Set RESEMBLE_API_KEY on the local server to use Resemble hosted voices."})
+            return None
+        return key
+
+    def do_OPTIONS(self):
+        if not self._guard(api=True):
+            return
+        if not self.path.startswith("/api/"):
+            self._json(404, {"error": "Unknown endpoint."})
+            return
+        self.send_response(204)
+        if getattr(self, "_approved_origin", None):
+            self.send_header("Access-Control-Allow-Origin", self._approved_origin)
+            self.send_header("Vary", "Origin")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def do_GET(self):
+        parsed = urlsplit(self.path)
+        is_api = parsed.path.startswith("/api/")
+        if not self._guard(api=is_api):
+            return
+        if parsed.path == "/api/provider/status":
+            self._json(200, {"resemble": {"configured": bool(os.environ.get("RESEMBLE_API_KEY", "").strip())}})
+        elif parsed.path == "/api/resemble/voices":
+            self._voices(parsed.query)
+        elif is_api:
+            self._json(404, {"error": "Unknown endpoint."})
+        elif self._static_allowed(parsed.path):
+            super().do_GET()
+
+    def do_HEAD(self):
+        if not self._guard(api=self.path.startswith("/api/")):
+            return
+        if self.path.startswith("/api/"):
+            self._json(405, {"error": "Use GET for this endpoint."})
+        elif self._static_allowed(urlsplit(self.path).path):
+            super().do_HEAD()
+
+    def _static_allowed(self, path):
+        decoded = unquote(path).replace("\\", "/")
+        parts = decoded.split("/")
+        if any(p.startswith(".") or p == "__pycache__" or ":" in p for p in parts if p):
+            self._json(403, {"error": "File is not accessible."})
+            return False
+        root = Path(self.directory).resolve()
+        target = (root / decoded.lstrip("/")).resolve()
+        if not target.is_relative_to(root):
+            self._json(403, {"error": "File is not accessible."})
+            return False
+        if any(p.startswith(".") or p == "__pycache__" for p in target.relative_to(root).parts):
+            self._json(403, {"error": "File is not accessible."})
+            return False
+        return True
+
+    def list_directory(self, _path):
+        self._json(403, {"error": "Directory listings are disabled."})
+        return None
+
+    def _voices(self, query):
+        params = parse_qs(query)
+        try:
+            page = int(params.get("page", ["1"])[0])
+            if not 1 <= page <= 10000:
+                raise ValueError()
+            gender = params.get("gender", [""])[0]
+            if gender and not re.fullmatch(r"[A-Za-z,-]{1,80}", gender):
+                raise ValueError()
+        except ValueError:
+            self._json(400, {"error": "Invalid page or gender filter."})
+            return
+        key = self._key()
+        if not key:
+            return
+        upstream = {"page": page, "page_size": 100, "pre_built_resemble_voice": "true", "sample_url": "true", "voice_selector": "true"}
+        if gender:
+            upstream["gender"] = gender
+        try:
+            result = provider_request("https://app.resemble.ai/api/v2/voices?" + urlencode(upstream), key)
+            items = result.get("items", [])
+            if not isinstance(items, list):
+                raise ProviderError("Provider returned an invalid voice list.")
+            voices = [v for item in items if (v := voice_metadata(item)) is not None]
+            pages = result.get("num_pages", result.get("page_count", 1))
+            pages = pages if isinstance(pages, int) and 1 <= pages <= 100000 else 1
+            self._json(200, {"voices": voices, "page": page, "numPages": pages})
+        except ProviderError as exc:
+            self._json(502, {"error": str(exc)})
+
+    def do_POST(self):
+        if not self._guard(api=True):
+            return
+        if urlsplit(self.path).path != "/api/resemble/synthesize":
+            self._json(404, {"error": "Unknown endpoint."})
+            return
+        if self.headers.get_content_type() != "application/json":
+            self._json(415, {"error": "Content-Type must be application/json."})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if self.headers.get("Transfer-Encoding") or not 0 < length <= MAX_BODY:
+                raise ValueError()
+        except ValueError:
+            self._json(413, {"error": "A bounded Content-Length is required."})
+            return
+        try:
+            body = json.loads(self.rfile.read(length))
+            if not isinstance(body, dict):
+                raise ValueError()
+            uuid, text = body.get("voiceUuid"), body.get("text")
+            if not isinstance(uuid, str) or not VOICE_ID.fullmatch(uuid):
+                raise ValueError()
+            if not isinstance(text, str) or not 1 <= len(text.strip()) <= 3000 or len(text) > 3000:
+                raise ValueError()
+        except (ValueError, UnicodeError):
+            self._json(400, {"error": "Provide a valid voiceUuid and text of 1 to 3000 characters."})
+            return
+        key = self._key()
+        if not key:
+            return
+        try:
+            result = provider_request("https://f.cluster.resemble.ai/synthesize", key, {
+                "voice_uuid": uuid, "data": text, "output_format": "wav", "precision": "PCM_16", "sample_rate": 48000,
+            })
+            content = result.get("audio_content")
+            if not isinstance(content, str) or not content:
+                raise ProviderError("Provider returned no audio.")
+            try:
+                audio = base64.b64decode(content, validate=True)
+                if len(audio) < 12 or audio[:4] != b"RIFF" or audio[8:12] != b"WAVE":
+                    raise ValueError()
+            except ValueError:
+                raise ProviderError("Provider returned invalid WAV audio.") from None
+            self._json(200, {"audioContent": content, "format": "wav", "sampleRate": 48000})
+        except ProviderError as exc:
+            self._json(502, {"error": str(exc)})
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--port", type=int, default=8877)
+    parser.add_argument("--directory", type=Path, default=Path(__file__).resolve().parents[1])
+    args = parser.parse_args()
+    root = args.directory.resolve()
+    if not root.is_dir():
+        parser.error("The static directory must exist.")
+    from functools import partial
+    server = ThreadingHTTPServer(("127.0.0.1", args.port), partial(StudioHandler, directory=str(root)))
+    print(f"LeeWay Voice Studio: http://127.0.0.1:{server.server_port}/studio.html", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()
