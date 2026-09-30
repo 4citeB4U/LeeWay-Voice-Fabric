@@ -6,24 +6,43 @@
   const DEFAULT_REFERENCE='https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav';
   const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v=20260929-arch1',sourceURL).href:'/src/chatterbox.worker.js?v=20260928-sampling1';
   function aborted(){return new DOMException('Speech was stopped.','AbortError');}
-  function chunks(text){
-    const words=String(text).replace(/\s+/g,' ').trim().split(' '),result=[];let next='';
-    for(const word of words){
-      if(next&&(next.length+word.length>180||next.split(' ').length>=24)){result.push(next);next='';}
-      next+=(next?' ':'')+word;
-      if(next.length>=60&&/[.!?]$/.test(word)){result.push(next);next='';}
+  // Keep syntactic context whenever possible, without exceeding the generation budget.
+  function segmentCut(text,{closed=false,flush=false}={}){
+    const limit=180;let clause=0;
+    for(const match of text.matchAll(/[.!?;:,](?=\s|$)/g)){
+      const cut=match.index+1;if(cut>limit)break;
+      if(cut===text.length&&!closed)continue;
+      const prefix=text.slice(0,cut);
+      if(/\b(?:Mr|Mrs|Ms|Dr|Prof|Jr|Sr|vs|etc|e\.g|i\.e)\.$/i.test(prefix)||/\b(?:[A-Z]\.)+$/.test(prefix))continue;
+      if(/[.!?]/.test(match[0])&&prefix.trim().length>=60)return cut;
+      if(prefix.trim().length>=40)clause=cut;
     }
-    if(next)result.push(next);return result.filter(Boolean);
+    if(text.length>limit){
+      if(clause)return clause;
+      const space=text.lastIndexOf(' ',limit);return space>0?space:limit;
+    }
+    if(closed)return text.length;
+    if(flush){
+      if(clause)return clause;
+      const space=text.lastIndexOf(' ');return space>0?space:0;
+    }
+    return 0;
+  }
+  function chunks(text){
+    let remaining=String(text).replace(/\s+/g,' ').trim();const result=[];
+    while(remaining){const cut=segmentCut(remaining,{closed:true});result.push(remaining.slice(0,cut).trim());remaining=remaining.slice(cut).trimStart();}
+    return result;
   }
   class LeeWayBrowserVoice {
     constructor(options={}){
       this.options=options;this.ready=false;this.loading=null;this.epoch=0;this.id=0;
       this.pending=new Map();this.sources=new Set();this.finishPlayback=new Set();this.device=null;this.lifecycle=0;
       this.exaggeration=.25;
-      this.playbackRate=1.1;
+      this.playbackRate=1.22;
     }
     static get download(){return {model:'onnx-community/chatterbox-ONNX',revision:REVISION,webgpuBytes:1499401538,wasmBytes:1548283901,referenceBytes:720078};}
     static chunks(text){return chunks(text);}
+    static segmentCut(text,options){return segmentCut(text,options);}
     createWorker(){
       if(this.worker)return;
       const worker=this.worker=new Worker(this.options.workerURL||WORKER_URL,{type:'module'});
@@ -88,6 +107,10 @@
       const data=mono.getChannelData(0).slice();await this.request('speaker',{audio:data.buffer},null,[data.buffer]);
     }
     async speak(text,{signal,onState=()=>{}}={}){
+      if(this.speakStream&&root.LeeWaySpeechStream){
+        const stream=new root.LeeWaySpeechStream(signal);stream.push(String(text));stream.end();
+        try{return await this.speakStream(stream,{signal,onState});}finally{stream.dispose();}
+      }
       if(!this.ready)throw new Error('Load the browser voice first.');
       if(signal?.aborted)throw aborted();
       this.stop();const epoch=this.epoch;
@@ -120,7 +143,7 @@
         this.finishPlayback.add(finish);media.onplaying=()=>root.LeeWayVoiceMetrics?.record('playback-start');media.onended=()=>finish();media.onerror=()=>finish(new Error('Browser audio playback failed.'));media.play().catch(finish);
       });
     }
-    setPace(value){this.playbackRate=Math.max(.85,Math.min(1.3,Number(value)||1.1));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
+    setPace(value){this.playbackRate=Math.max(.85,Math.min(1.3,Number(value)||1.22));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
     stop(){
       ++this.epoch;this.worker?.postMessage({type:'stop',epoch:this.epoch});
       for(const source of this.sources){try{source.stop()}catch{}}
