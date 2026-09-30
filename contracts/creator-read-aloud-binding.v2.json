@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "2.0.0",
+  "id": "LEEWAY_CREATOR_READ_ALOUD_BINDING_V2",
+  "supersedes": "contracts/creator-read-aloud-binding.v1.json",
+  "creatorAuthorization": "2026-09-30 explicit request for automatic Samsung read-aloud on the qualified Android secondary workstation",
+  "creatorFacingPolicy": {
+    "leewayOwnedAgentLeeSurface": {
+      "requiredVoicePackageId": "agent-lee-voice-one",
+      "fallback": "VOICE_UNAVAILABLE"
+    },
+    "chatgptNativeSurface": {
+      "primaryAuthority": "ChatGPT client native voice/read-aloud",
+      "preparedTextAccessibilityFallback": {
+        "allowed": true,
+        "renderer": "LeeWay Read Aloud Bridge",
+        "androidPackage": "industries.leeway.readaloud",
+        "enginePackage": "com.samsung.SMT",
+        "transport": "127.0.0.1 loopback only",
+        "sourceText": "VISIBLE_ASSISTANT_REPLY_ONLY",
+        "hiddenChainOfThought": "FORBIDDEN",
+        "identity": "SAMSUNG_SYSTEM_TTS_ACCESSIBILITY_NOT_AGENT_LEE_VOICE_ONE",
+        "automaticAfterReplyAllowed": true
+      }
+    }
+  },
+  "invariants": [
+    "Prepared-text accessibility speech may read the same substantive visible answer shown in chat.",
+    "Samsung/system TTS must never be represented as Agent Lee Voice One.",
+    "Secrets, credentials, MFA codes and hidden reasoning must not be spoken.",
+    "Stop speech must not cancel the parent reasoning or execution task.",
+    "Loopback accessibility renderer is a local output adapter, not a reasoning authority."
+  ],
+  "forbiddenFallbacks": [
+    "windows-system-speech-mislabeled-as-agent-lee",
+    "browser-default-speech-synthesis-mislabeled-as-agent-lee",
+    "samsung-system-tts-mislabeled-as-agent-lee",
+    "unrelated-provider-voice-mislabeled-as-agent-lee"
+  ]
+}
