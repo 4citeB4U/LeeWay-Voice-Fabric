@@ -13,7 +13,13 @@ assert.match(js,/voiceRegistry\.audio/);
 assert.match(js,/LeeWayBrowserVoice/);
 assert.match(js,/LeeWayPocketNative/);
 assert.match(js,/onSpeakComplete/);
+assert.match(js,/LeeWaySpeechStream/);
+assert.match(js,/streamStart/);
+assert.match(js,/streamChunk/);
+assert.match(js,/streamEnd/);
+assert.match(js,/onRendered/);
+assert.match(js,/VOICE_ONE_STREAM_READY/);
 assert.doesNotMatch(js,/speechSynthesis/);
 assert.doesNotMatch(js,/TextToSpeech/);
 
-console.log('PASS Android WebView Voice One bridge source contract');
+console.log('PASS Android WebView Voice One streaming bridge source contract');
