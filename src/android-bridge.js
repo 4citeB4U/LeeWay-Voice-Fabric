@@ -12,7 +12,10 @@ HOW: Keep Voice One prepared in a native WebView; accept speak/stream/stop comma
 import {voiceRegistry} from './voice-registry.js';
 
 const VOICE_ID='agent-lee-voice-one';
-const voice=new globalThis.LeeWayBrowserVoice();
+// An Android adapter can avoid a crashing GPU driver without changing Voice One.
+const requestedDevice=new URLSearchParams(globalThis.location?.search||'').get('device');
+const device=requestedDevice==='wasm'?'wasm':undefined;
+const voice=new globalThis.LeeWayBrowserVoice({device});
 const state={
   ready:false,
   preparing:false,
