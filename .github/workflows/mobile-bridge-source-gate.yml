@@ -1,0 +1,34 @@
+name: Voice Fabric Mobile Bridge Source Gate
+
+on:
+  pull_request:
+    paths:
+      - 'mobile.html'
+      - 'src/mobile-runtime.js'
+      - 'src/voice-sdk.js'
+      - 'src/bridge-runtime.js'
+      - 'tests/mobile-runtime.test.cjs'
+      - 'package.json'
+      - '.github/workflows/mobile-bridge-source-gate.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'mobile.html'
+      - 'src/mobile-runtime.js'
+      - 'tests/mobile-runtime.test.cjs'
+      - 'package.json'
+      - '.github/workflows/mobile-bridge-source-gate.yml'
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax gate
+        run: npm run check
+      - name: Unit/source contracts
+        run: npm test
