@@ -1,0 +1,28 @@
+name: Android Pocket Voice Bridge Source Gate
+
+on:
+  push:
+    branches:
+      - feature/android-pocket-voice-bridge-20260929
+    paths:
+      - 'android-bridge.html'
+      - 'src/android-bridge.js'
+      - 'src/browser-voice.js'
+      - 'src/voice-registry.js'
+      - 'tests/android-bridge.test.cjs'
+      - '.github/workflows/android-pocket-voice-bridge.yml'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify JavaScript syntax
+        run: node --check src/android-bridge.js
+      - name: Verify Android bridge source contract
+        run: node tests/android-bridge.test.cjs
+      - name: Run Voice Fabric unit tests
+        run: npm test
