@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 let source=fs.readFileSync(__dirname+'/../src/formula-voice-adapter.js','utf8')
  .replace(/export const /g,'globalThis.')
- .replace(/export function /g,'globalThis.');
+ .replace(/export function ([A-Za-z0-9_$]+)\s*\(/g,'globalThis.$1 = function $1(');
 const scope={};vm.createContext(scope);vm.runInContext(source,scope);
 const rows=Array.from({length:16},(_,i)=>[100+i,0.7,20,80,0.2,0.99]);
 const ranges=[[0,3000],[0,5],[0,1000],[0,2000],[0,1],[0,1]];
