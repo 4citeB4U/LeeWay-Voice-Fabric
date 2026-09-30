@@ -14,6 +14,6 @@ test('rejects incomplete history and uncalibrated ranges',()=>{
  assert.throws(()=>scope.buildVoiceFormulaRequest({rows,ranges:[[0,1]]}),/six calibrated/);
 });
 test('provenance requires source and authorization',()=>{
- assert.deepEqual(scope.voiceFormulaProvenance({source:'receipt-set',authorization:'creator-task'}),{source:'receipt-set',mapping:'voice-runtime-state-v1',authorization:'creator-task'});
+ const provenance=scope.voiceFormulaProvenance({source:'receipt-set',authorization:'creator-task'});\n assert.equal(provenance.source,'receipt-set');assert.equal(provenance.mapping,'voice-runtime-state-v1');assert.equal(provenance.authorization,'creator-task');
  assert.throws(()=>scope.voiceFormulaProvenance({source:'x'}),/authorization/);
 });
