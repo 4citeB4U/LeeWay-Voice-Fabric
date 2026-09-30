@@ -1,0 +1,35 @@
+name: Voice Fabric Source Gate
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'mobile-runtime.html'
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+      - '.github/workflows/source-gate.yml'
+  pull_request:
+    paths:
+      - 'mobile-runtime.html'
+      - 'src/**'
+      - 'tests/**'
+      - 'package.json'
+      - '.github/workflows/source-gate.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run source tests
+        run: npm test
+      - name: Check JavaScript syntax
+        run: npm run check
