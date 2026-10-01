@@ -15,7 +15,11 @@ const VOICE_ID='agent-lee-voice-one';
 // An Android adapter can avoid a crashing GPU driver without changing Voice One.
 const requestedDevice=new URLSearchParams(globalThis.location?.search||'').get('device');
 const device=requestedDevice==='wasm'?'wasm':undefined;
-const voice=new globalThis.LeeWayBrowserVoice({device});
+const voice=new globalThis.LeeWayBrowserVoice({device,onUnavailable:error=>{
+  state.ready=false;state.device=null;
+  state.lastError=error?.message||'Voice runtime is unavailable.';
+  emit('onError',{stage:'runtime',error:state.lastError,voicePackageId:VOICE_ID});
+}});
 const state={
   ready:false,
   preparing:false,
@@ -46,7 +50,8 @@ const requireStream=id=>{
 };
 
 async function prepare(){
-  if(state.ready)return {...state};
+  if(state.ready&&voice.ready)return {...state};
+  state.ready=false;
   if(state.preparing)return new Promise((resolve,reject)=>{
     const poll=setInterval(()=>{
       if(state.ready){clearInterval(poll);resolve({...state});}
@@ -69,6 +74,7 @@ async function prepare(){
     emit('onReady',{...state,provider:pkg.provider});
     return {...state,provider:pkg.provider};
   }catch(error){
+    state.ready=false;
     state.lastError=error?.message||String(error);
     emit('onError',{stage:'prepare',error:state.lastError,voicePackageId:VOICE_ID});
     throw error;
@@ -150,7 +156,7 @@ async function streamEnd(streamId){
 globalThis.LeeWayAndroidVoice={
   authority:'4citeB4U/LeeWay-Voice-Fabric',
   voicePackageId:VOICE_ID,
-  status:()=>({...state,activeStreamId}),
+  status:()=>({...state,ready:state.ready&&voice.ready,activeStreamId}),
   prepare,
   speak,
   streamStart,

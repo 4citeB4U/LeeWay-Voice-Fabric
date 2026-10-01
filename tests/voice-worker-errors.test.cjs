@@ -11,6 +11,18 @@ test('stop message cannot steal the active request error destination',async()=>{
  listeners.unhandledrejection({preventDefault(){},reason:Error('network failure')});
  assert.equal(messages.at(-1).id,42);assert.equal(messages.at(-1).data.fatal,true);
 });
+test('inference timeout invalidates readiness and notifies native adapter',async()=>{
+ let deadline,unavailable;
+ class Worker{postMessage(){}terminate(){this.terminated=true;}}
+ const context=vm.createContext({Worker,URL,DOMException,setTimeout:fn=>{deadline=fn;return 1;},clearTimeout(){}});
+ vm.runInContext(fs.readFileSync('src/browser-voice.js','utf8'),context);
+ const voice=vm.runInContext('new LeeWayBrowserVoice()',context);
+ voice.options.onUnavailable=error=>unavailable=error;
+ voice.ready=true;
+ const generation=voice.request('generate'),failed=assert.rejects(generation,/too long/);
+ deadline();await failed;
+ assert.equal(voice.ready,false);assert.equal(voice.worker,null);assert.match(unavailable.message,/too long/);
+});
 test('failed preparation terminates poisoned worker and next request creates another',async()=>{
  const workers=[];
  class Worker{constructor(){workers.push(this);}postMessage(m){this.last=m;}terminate(){this.terminated=true;}}
