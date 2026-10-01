@@ -7,7 +7,7 @@ const requested=req=>new Promise((resolve,reject)=>{req.onsuccess=()=>resolve(re
 export async function audioHash(blob){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer()))].map(b=>b.toString(16).padStart(2,'0')).join('');}
 export async function encodePortable(metadata,audio){
  const meta=normalizeVoicePackage(metadata);
- if(meta.provider==='resemble')return {schema:'leeway.voice-package/v2',metadata:{...meta,referenceUrl:null},audio:null,requires:'Resemble account access to this voice UUID'};
+ if(meta.provider!=='chatterbox')return {schema:'leeway.voice-package/v2',metadata:{...meta,referenceUrl:null},audio:null,requires:meta.provider==='kokoro'?'Kokoro local adapter and pinned model weights':'Resemble account access to this voice UUID'};
  if(!(audio instanceof Blob)||audio.size<1||audio.size>MAX_AUDIO)throw new Error('Portable voice requires reference audio up to 15 MB');
  const sha256=await audioHash(audio),bytes=new Uint8Array(await audio.arrayBuffer());let binary='';
  for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
@@ -16,7 +16,7 @@ export async function encodePortable(metadata,audio){
 export async function decodePortable(data){
  if(data?.schema!=='leeway.voice-package/v2')throw new Error('Unsupported voice package schema');
  const metadata=normalizeVoicePackage(data.metadata);
- if(metadata.provider==='resemble'){if(data.audio)throw new Error('Hosted voices do not carry clone reference audio');return {metadata,audio:null};}
+ if(metadata.provider!=='chatterbox'){if(data.audio)throw new Error('Hosted voices do not carry clone reference audio');return {metadata,audio:null};}
  const packed=data.audio;if(!packed||packed.encoding!=='base64'||typeof packed.data!=='string'||packed.data.length>20_000_004)throw new Error('Invalid or oversized portable audio');
  let bytes;try{bytes=Uint8Array.from(atob(packed.data),c=>c.charCodeAt(0));}catch{throw new Error('Invalid base64 audio');}
  if(!bytes.length||bytes.length>MAX_AUDIO)throw new Error('Reference must be between 1 byte and 15 MB');
@@ -34,11 +34,11 @@ export class LeeWayVoiceRegistry{
  async get(id){return (await this.list()).find(p=>p.id===id)||null;}
  async save(meta,audioBlob){
   const pkg=normalizeVoicePackage(meta);if(builtin(pkg.id))throw new Error('Choose a new ID; built-in voice identities cannot be overwritten');
-  if(pkg.provider!=='resemble'){
+  if(pkg.provider==='chatterbox'){
    if(!(audioBlob instanceof Blob)||audioBlob.size<1||audioBlob.size>MAX_AUDIO)throw new Error('Voice package requires reference audio smaller than 15 MB');
    pkg.referenceSha256=await audioHash(audioBlob);pkg.referenceUrl=null;
   }
-  pkg.source=pkg.provider==='resemble'?'RESEMBLE_HOSTED':'USER_LOCAL';
+  pkg.source=pkg.provider==='resemble'?'RESEMBLE_HOSTED':pkg.provider==='kokoro'?'MODEL_LOCAL':'USER_LOCAL';
   const db=await open(),tx=db.transaction([PACKAGES,AUDIO],'readwrite'),done=txDone(tx);
   tx.objectStore(PACKAGES).put(pkg);if(audioBlob)tx.objectStore(AUDIO).put(audioBlob,pkg.id);else tx.objectStore(AUDIO).delete(pkg.id);
   await done;db.close();return pkg;

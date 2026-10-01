@@ -58,6 +58,15 @@ export const BUILTIN_VOICE_PACKAGES=[{
   status:'AVAILABLE'
 }];
 
+export const KOKORO_VOICE_PACKAGES=[['af_heart','Heart','female'],['af_bella','Bella','female'],['af_nicole','Nicole','female'],['am_fenrir','Fenrir','male'],['am_michael','Michael','male'],['am_puck','Puck','male']].map(([voiceId,name,gender])=>({
+  id:'kokoro-'+voiceId,voiceId,name:name+' · Kokoro',gender,owner:'hexgrad / Kokoro',provider:'kokoro',
+  speakerId:'kokoro-'+voiceId,packageType:'MODEL_VOICE',source:'BUILTIN_LOCAL',pace:1,exaggeration:.5,
+  referenceUrl:null,referenceSha256:null,previewUrl:'/api/local/preview/'+voiceId,license:'Apache-2.0',
+  sourceUrl:'https://huggingface.co/hexgrad/Kokoro-82M',status:'AVAILABLE',
+  description:'Distinct local Kokoro model voice. Not a Chatterbox preset or a pitch-shifted clone.'
+}));
+BUILTIN_VOICE_PACKAGES.push(...KOKORO_VOICE_PACKAGES);
+
 for(const pkg of BUILTIN_VOICE_PACKAGES){
   if(pkg.packageType==='CHATTERBOX_DEFAULT_PROFILE')Object.assign(pkg,{
     referenceUrl:PROVIDER_REFERENCE,referenceSha256:PROVIDER_HASH,
@@ -90,12 +99,14 @@ export function normalizeVoicePackage(input={}){
   const pace=Number(input.pace??1.22),exaggeration=Number(input.exaggeration??.25);
   if(!Number.isFinite(pace)||pace<.6||pace>1.6)throw new Error('Voice pace must be between 0.60 and 1.60.');
   if(!Number.isFinite(exaggeration)||exaggeration<0||exaggeration>1)throw new Error('Voice delivery must be between 0 and 1.');
-  const provider=String(input.provider||'chatterbox');if(!['chatterbox','resemble'].includes(provider))throw new Error('Unsupported voice provider');
+  const provider=String(input.provider||'chatterbox');if(!['chatterbox','resemble','kokoro'].includes(provider))throw new Error('Unsupported voice provider');
   const tuning={};const ranges={pace:[.6,1.6],pitch:[-6,6],bass:[-9,9],warmth:[-9,9],presence:[-9,9],air:[-9,9],highpass:[40,180],deEss:[0,1],noiseReduction:[0,1],compression:[1,4],gain:[-9,6]};
   for(const [key,[low,high]] of Object.entries(ranges))if(input.tuning?.[key]!==undefined){const n=input.tuning[key];if(typeof n!=='number'||!Number.isFinite(n)||n<low||n>high)throw new Error(`Invalid tuning ${key}`);tuning[key]=n;}
   const voiceUuid=provider==='resemble'?String(input.voiceUuid||''):null;
+  const voiceId=provider==='kokoro'?String(input.voiceId||''):null;
+  if(provider==='kokoro'&&!KOKORO_VOICE_PACKAGES.some(p=>p.voiceId===voiceId))throw new Error('Unknown Kokoro voice ID');
   if(provider==='resemble'&&!/^[A-Za-z0-9_-]{1,128}$/.test(voiceUuid))throw new Error('Hosted voice requires a provider voice UUID');
-  return {id,name:name.slice(0,120),owner:owner.slice(0,120),provider,packageType:String(input.packageType||'CLONED_REFERENCE'),pace,exaggeration,source:String(input.source||'USER_LOCAL'),status:String(input.status||'AVAILABLE'),createdAt:input.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),referenceUrl:safeUrl(input.referenceUrl),referenceSha256:input.referenceSha256||null,speakerId:String(input.speakerId||id),gender:String(input.gender||'unspecified'),description:String(input.description||'').slice(0,1000),license:String(input.license||'User-provided reference'),sourceUrl:safeUrl(input.sourceUrl),previewUrl:safeUrl(input.previewUrl),voiceUuid,tuning,synthesis:normalizeSynthesis(input.synthesis||{exaggeration})};
+  return {id,name:name.slice(0,120),owner:owner.slice(0,120),provider,packageType:String(input.packageType||'CLONED_REFERENCE'),pace,exaggeration,source:String(input.source||'USER_LOCAL'),status:String(input.status||'AVAILABLE'),createdAt:input.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),referenceUrl:safeUrl(input.referenceUrl),referenceSha256:input.referenceSha256||null,speakerId:String(input.speakerId||id),gender:String(input.gender||'unspecified'),description:String(input.description||'').slice(0,1000),license:String(input.license||'User-provided reference'),sourceUrl:safeUrl(input.sourceUrl),previewUrl:provider==='kokoro'?'/api/local/preview/'+voiceId:safeUrl(input.previewUrl),voiceId,voiceUuid,tuning,synthesis:normalizeSynthesis(input.synthesis||{exaggeration})};
 }
 
 export function agentVoiceBinding({agentId,voicePackageId}={}){

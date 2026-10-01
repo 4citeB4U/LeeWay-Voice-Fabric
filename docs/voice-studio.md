@@ -1,6 +1,6 @@
 # Voice Studio: local speakers and hosted voices
 
-Run `python adapters/studio-server.py` from the repository (Python 3.10+), then open `http://127.0.0.1:8877/studio.html`. The server binds only to loopback. Its default static root is relative to its own file, independent of the working directory. Node is only needed for the JavaScript tests.
+Run `python adapters/start-studio.py --setup` from the repository (Python 3.10+ and Node.js), then open `http://127.0.0.1:8877/studio.html`. Later launches omit `--setup`. Both services bind only to loopback. Paths derive from the repository location. See [portable local runtime setup](local-studio-runtime.md).
 
 ## What is a voice?
 
@@ -9,6 +9,10 @@ Agent Lee Voice One and the Chatterbox default reference are two distinct refere
 Resemble AI makes Chatterbox, but its hosted prebuilt voice catalog is a separate authenticated service. The open model does not include that multi-speaker catalog. The studio discovers actual accessible UUIDs, names, preview URLs and gender metadata from the provider. It does not invent female voice IDs or repackage character demo recordings as stock voices.
 
 ## Local workflow
+
+For immediate listening, select Agent Lee or any of the six Kokoro speakers. Their pre-generated, fixed-text previews load into the compact bottom tuning console; the console identifies the selected speaker. The three female and three male Kokoro speakers have distinct published embeddings. Press the large Play button, turn a dial, and audition or download the processed result. **Generate with local engine** uses your own text. The local engine does not need the large Chatterbox browser download. Agent Lee requires the separately configured clone service for new text, while its preview can be tuned without that service. Kokoro copies and exports carry model identity plus tuning, without reference audio; their target host needs the Kokoro adapter and weights.
+
+For custom reference cloning through the optional browser engine:
 
 1. Select a reference speaker, or expand **Add your own voice** and choose a clean recording between 1 and 30 seconds, at most 15 MB. Enter a name and owner. Audio is decoded and saved in this browser's IndexedDB without uploading it to a provider.
 2. Press **Prepare browser model** once. The pinned ONNX model download is approximately 1.5 GB. WebGPU is preferred; a supported WASM fallback is slower. Browser and device memory matter.
@@ -60,7 +64,7 @@ const take = await renderAudio({
 // take.blob is the tuned WAV. Run DSP in a worker for responsive interfaces.
 ```
 
-This local example is for Chatterbox profiles. For `provider: "resemble"`, call the server contract instead and decode its WAV before applying `renderAudio`. Revoke object URLs after playback/download, stop the engine on cancellation, and discard late results. `studio.js` demonstrates those lifecycle guards.
+This local example is for Chatterbox profiles. For `provider: "resemble"`, call the hosted server contract instead and decode its WAV before applying `renderAudio`. For `provider: "kokoro"`, POST `/api/local/synthesize` with `{voicePackageId: 'kokoro-' + profile.voiceId, text}`. The local API returns base64 WAV in `audioContent`, `sampleRate`, `engine`, and generation metrics. GET `/api/local/status` checks readiness; GET `/api/local/voices` provides the six supported identities. Agent Lee uses `voicePackageId: 'agent-lee-voice-one'` and its configured clone adapter. Revoke object URLs after playback/download, stop the engine on cancellation, and discard late results. `studio.js` demonstrates those lifecycle guards.
 
 The existing iframe speech SDK remains available for streaming applications. Full studio EQ is not automatically installed into that bridge by exporting a package: consuming applications must apply its tuning through the DSP module. Browser storage is origin-specific; portability comes from the exported package, not from sharing a local database. Windows browser validation does not establish that all phones, operating systems or embedded WebViews work.
 

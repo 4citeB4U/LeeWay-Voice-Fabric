@@ -25,7 +25,14 @@ async function load(id,requested){
   if(!configResponse.ok)throw new Error('Chatterbox config could not be loaded.');
   const config=await configResponse.json();
   config.architectures=['ChatterboxModel'];
-  model=await ChatterboxModel.from_pretrained(MODEL,{revision:REVISION,config,device,dtype,progress_callback:data=>progress(id,data)});
+  try{model=await ChatterboxModel.from_pretrained(MODEL,{revision:REVISION,config,device,dtype,progress_callback:data=>progress(id,data)});}
+  catch(error){
+    const message=String(error?.message||error);
+    // Never turn HTTP/cache/download failures into another multi-GB attempt.
+    error.retryableGPU=device==='webgpu'&&!/fetch|network|download|http|quota|cache|file not found/i.test(message)&&/webgpu|gpu.?device|device.?lost|shader|wgsl/i.test(message);
+    freeSpeaker();try{await model?.dispose();}catch{}model=null;processor=null;
+    throw error;
+  }
   return {device,model:MODEL,revision:REVISION,dtype,exaggerationSupported:model.sessions.embed_tokens.inputNames.includes('exaggeration')};
 }
 async function run(message){
@@ -71,6 +78,6 @@ self.onmessage=event=>{
   // Every operation uses one serial work lane. Old queued requests are discarded.
   chain=chain.then(async()=>{
     try{const result=await run(message);if(result!==null)reply(message.id,'complete',result)}
-    catch(error){reply(message.id,'error',{message:error.message||'Browser voice failed.'})}
+    catch(error){if(message.type==='load'){freeSpeaker();try{await model?.dispose();}catch{}model=null;processor=null;}reply(message.id,'error',{message:error.message||'Browser voice failed.',retryableGPU:error.retryableGPU===true})}
   });
 };

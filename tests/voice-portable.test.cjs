@@ -21,9 +21,29 @@ test('hosted packages contain UUID metadata, require account and never clone byt
 });
 test('builtins distinguish two reference speakers from shared delivery presets',async()=>{
  const {BUILTIN_VOICE_PACKAGES:p,normalizeVoicePackage}=await import(coreURL);
- assert.equal(new Set(p.map(x=>x.referenceSha256)).size,2);
+ assert.equal(new Set(p.filter(x=>x.provider==='chatterbox').map(x=>x.referenceSha256)).size,2);
  assert.equal(p.filter(x=>x.source==='DELIVERY_PRESET').length,3);
  assert.throws(()=>normalizeVoicePackage({...meta,referenceUrl:'javascript:alert(1)'}),/HTTP/);
  assert.throws(()=>normalizeVoicePackage({...meta,tuning:{pitch:100}}),/pitch/);
  assert.throws(()=>normalizeVoicePackage({...meta,provider:'resemble'}),/UUID/);
+});
+
+
+test('Kokoro catalog contains six distinct model voices split three female and three male',async()=>{
+ const {BUILTIN_VOICE_PACKAGES}=await import(coreURL),voices=BUILTIN_VOICE_PACKAGES.filter(p=>p.provider==='kokoro');
+ assert.equal(voices.length,6);assert.equal(new Set(voices.map(p=>p.voiceId)).size,6);
+ assert.equal(voices.filter(p=>p.gender==='female').length,3);assert.equal(voices.filter(p=>p.gender==='male').length,3);
+ for(const p of voices){assert.equal(p.packageType,'MODEL_VOICE');assert.equal(p.referenceUrl,null);assert.equal(p.referenceSha256,null);assert.equal(p.license,'Apache-2.0');}
+});
+
+test('portable Kokoro model metadata round trip retains identity and tuning without clone bytes',async()=>{
+ const {encodePortable,decodePortable}=await registry,{KOKORO_VOICE_PACKAGES}=await import(coreURL);
+ for(const model of KOKORO_VOICE_PACKAGES){const p=await encodePortable({...model,id:model.id+'-custom',tuning:{pace:1.15,pitch:-1},apiKey:'secret-not-portable'},new Blob(['must-not-export']));
+ const decoded=await decodePortable(JSON.parse(JSON.stringify(p)));assert.equal(decoded.metadata.voiceId,model.voiceId);assert.equal(decoded.metadata.provider,'kokoro');assert.equal(decoded.metadata.gender,model.gender);assert.equal(decoded.metadata.packageType,'MODEL_VOICE');assert.equal(decoded.metadata.license,'Apache-2.0');assert.deepEqual(decoded.metadata.tuning,{pace:1.15,pitch:-1});assert.equal(decoded.audio,null);assert.equal(p.audio,null);assert.match(p.requires,/Kokoro.*model/);assert.ok(!JSON.stringify(p).includes('secret-not-portable'));assert.ok(!JSON.stringify(p).includes('must-not-export'));}
+});
+
+test('unrecognized model voice IDs and clone bytes in a model package are rejected',async()=>{
+ const {encodePortable,decodePortable}=await registry,{normalizeVoicePackage,KOKORO_VOICE_PACKAGES}=await import(coreURL);
+ for(const voiceId of ['',null,'af_unknown','../af_heart','af_heart?token=secret'])assert.throws(()=>normalizeVoicePackage({...meta,provider:'kokoro',voiceId}),/Kokoro voice ID/);
+ const p=await encodePortable(KOKORO_VOICE_PACKAGES[0]);await assert.rejects(()=>decodePortable({...p,metadata:{...p.metadata,voiceId:'am_invented'}}),/Kokoro voice ID/);await assert.rejects(()=>decodePortable({...p,audio:{data:'forbidden'}}),/do not carry/);
 });

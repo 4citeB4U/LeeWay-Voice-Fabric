@@ -10,7 +10,7 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from urllib.error import HTTPError
 
 PATH = Path(__file__).resolve().parents[1] / "adapters" / "studio-server.py"
@@ -128,6 +128,85 @@ class StudioTests(unittest.TestCase):
             with self.assertRaises(studio.ProviderError) as caught:
                 studio.provider_request("https://provider", "test-only-secret")
             self.assertNotIn("test-only-secret", str(caught.exception))
+
+
+    def test_local_catalog_has_six_distinct_speakers_and_no_reference_requirement(self):
+        with patch.object(studio, "local_request") as upstream:
+            status, body, _ = self.request("GET", "/api/local/voices")
+            self.assertEqual(status, 200)
+            voices = body["voices"]
+            self.assertEqual(len({v["voiceId"] for v in voices}), 6)
+            self.assertEqual(sum(v["gender"] == "female" for v in voices), 3)
+            self.assertEqual(sum(v["gender"] == "male" for v in voices), 3)
+            self.assertTrue(all(v["provider"] == "kokoro" and v["referenceUrl"] is None for v in voices))
+            upstream.assert_not_called()
+
+    def test_local_validation_and_origin_block_before_synthesis(self):
+        with patch.object(studio, "local_request") as upstream, patch.object(studio, "CLONE", None):
+            for body in ({"text":"Hello", "voicePackageId":"kokoro-af_fake"},
+                         {"text":"Hello", "voicePackageId":"../agent-lee-voice-one"},
+                         {"text":" ", "voicePackageId":"kokoro-af_heart"},
+                         {"text":"a"*1501, "voicePackageId":"kokoro-af_heart"},
+                         {"text":42, "voicePackageId":"kokoro-af_heart"}, [], {}):
+                self.assertEqual(self.request("POST", "/api/local/synthesize", body)[0], 400)
+            valid = {"text":"Hello", "voicePackageId":"kokoro-af_heart"}
+            self.assertEqual(self.request("POST", "/api/local/synthesize", valid, {"Origin":"https://evil.example"})[0],403)
+            self.assertEqual(self.request("POST", "/api/local/synthesize", valid, {"Content-Type":"text/plain"})[0],415)
+            self.assertEqual(self.request("POST", "/api/local/synthesize", valid, {"Transfer-Encoding":"chunked"})[0],400)
+            self.assertEqual(self.request("POST", "/api/local/synthesize", {"text":"a"*40000})[0],400)
+            upstream.assert_not_called()
+
+    def test_local_kokoro_routes_fixed_voice_and_text_without_client_url_override(self):
+        fixture = {"audioContent":base64.b64encode(b"RIFF0000WAVEfixture").decode(),"format":"wav","sampleRate":24000}
+        with patch.object(studio, "local_request", return_value=fixture) as upstream:
+            code, body, _ = self.request("POST", "/api/local/synthesize", {
+                "voicePackageId":"kokoro-af_heart","text":"Fixture only.","url":"https://evil.example","voiceId":"af_fake"})
+            self.assertEqual(code,200)
+            self.assertEqual(body,fixture)
+            upstream.assert_called_once_with(studio.KOKORO_URL, '/synthesize', {'voiceId':'af_heart','text':'Fixture only.'}, timeout=180)
+
+    def test_local_clone_fallback_converts_only_generated_basename_to_audio_route(self):
+        wav = b"RIFF0000WAVEfixture"
+        with patch.object(studio, "CLONE", None), patch.object(studio, "local_request", side_effect=[{"audio_path":"/app/output/agent-lee-fixture.wav"},wav]) as upstream:
+            code, body, _ = self.request("POST", "/api/local/synthesize", {"voicePackageId":"agent-lee-voice-one","text":"Fixture only."})
+            self.assertEqual(code,200)
+            self.assertEqual(base64.b64decode(body['audioContent']),wav)
+            self.assertEqual(upstream.call_args_list[0].args[1],'/tts')
+            self.assertEqual(upstream.call_args_list[0].args[2]['voice'],'LEEWAY_VOICE::AGENT_LEE::DEFAULT_CLONE')
+            self.assertEqual(upstream.call_args_list[1].args,(studio.XTTS_URL,'/audio/agent-lee-fixture.wav'))
+            self.assertGreaterEqual(body['metrics']['generationMs'],0)
+        with patch.object(studio, "CLONE", None), patch.object(studio, "local_request", return_value={"audio_path":"file.wav?private=secret"}) as upstream:
+            self.assertEqual(self.request("POST", "/api/local/synthesize", {"voicePackageId":"agent-lee-voice-one","text":"Fixture"})[0],503)
+            self.assertEqual(upstream.call_count,1)
+
+    def test_local_preview_allowlist_and_missing_preview(self):
+        with patch.object(studio, "local_request", return_value=b'RIFF0000WAVEfixture') as upstream:
+            code, body, headers = self.request('GET','/api/local/preview/af_bella')
+            self.assertEqual(code,200); self.assertEqual(headers['Content-Type'],'audio/wav')
+            self.assertEqual(body,b'RIFF0000WAVEfixture')
+            upstream.assert_called_once_with(studio.KOKORO_URL,'/preview/af_bella',binary=True)
+            self.assertEqual(self.request('GET','/api/local/preview/af_invented')[0],404)
+            self.assertEqual(upstream.call_count,1)
+        with patch.object(studio,'local_request',side_effect=ValueError('private-diagnostic-token')):
+            code, body, _ = self.request('GET','/api/local/preview/af_bella')
+            self.assertEqual(code,404); self.assertNotIn('private-diagnostic-token',str(body))
+
+    def test_local_service_failures_are_reported_without_private_details(self):
+        with patch.object(studio,'local_request',side_effect=OSError('private-diagnostic-token')), patch.object(studio,'CLONE',None):
+            code, body, _ = self.request('GET','/api/local/status')
+            self.assertEqual(code,200); self.assertFalse(body['kokoro']['ready']);self.assertFalse(body['xtts']['ready'])
+            self.assertNotIn('private-diagnostic-token',str(body))
+            code, body, _ = self.request('POST','/api/local/synthesize',{'voicePackageId':'kokoro-af_heart','text':'Fixture'})
+            self.assertEqual(code,503);self.assertNotIn('private-diagnostic-token',str(body))
+
+    def test_local_transport_limits_large_response(self):
+        class Oversized:
+            def __enter__(self): return self
+            def __exit__(self,*_): pass
+            def read(self,limit): return b'x'*limit
+        with patch.object(studio,'urlopen',return_value=Oversized()):
+            with self.assertRaisesRegex(ValueError,'too large'):
+                studio.local_request(studio.KOKORO_URL,'/synthesize',binary=True)
 
 
 if __name__ == "__main__":

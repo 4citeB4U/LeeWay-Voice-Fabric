@@ -10,12 +10,47 @@ import argparse
 import base64
 import json
 import os
+import sys
+import time
 from pathlib import Path
 import re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, unquote, urlencode, urlsplit
 from urllib.request import Request, urlopen
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from local_clone import CloneWorker
+
+LOCAL_VOICES = [('af_heart','Heart','female'),('af_bella','Bella','female'),('af_nicole','Nicole','female'),
+                ('am_fenrir','Fenrir','male'),('am_michael','Michael','male'),('am_puck','Puck','male')]
+KOKORO_URL = os.environ.get('LEEWAY_KOKORO_URL', 'http://127.0.0.1:8878').rstrip('/')
+XTTS_URL = os.environ.get('LEEWAY_XTTS_URL', 'http://127.0.0.1:8092').rstrip('/')
+CLONE = None
+
+def local_request(base, route, payload=None, timeout=3, binary=False):
+    data = None if payload is None else json.dumps(payload).encode('utf-8')
+    req = Request(base+route, data=data, headers={'Content-Type':'application/json'})
+    with urlopen(req, timeout=timeout) as response:
+        raw = response.read(24*1024*1024+1)
+    if len(raw)>24*1024*1024:
+        raise ValueError('Local response is too large')
+    return raw if binary else json.loads(raw)
+
+def local_status():
+    try:
+        kokoro = local_request(KOKORO_URL, '/status')
+    except Exception:
+        kokoro = {'ready':False,'state':'unavailable','message':'Start the local Kokoro adapter.'}
+    if CLONE and CLONE.container:
+        xtts = {'ready':CLONE.ready,'message':CLONE.error or ('Clone ready.' if CLONE.ready else 'Clone is warming up.')}
+    else:
+        try:
+            health = local_request(XTTS_URL, '/health')
+            xtts = {'ready':bool(health.get('model_loaded')), 'message':'Existing clone service.'}
+        except Exception:
+            xtts = {'ready':False,'message':'Local clone service unavailable.'}
+    return {'kokoro':kokoro,'xtts':xtts}
 
 MAX_BODY = 32 * 1024
 MAX_PROVIDER_RESPONSE = 24 * 1024 * 1024
@@ -149,6 +184,28 @@ class StudioHandler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/api/provider/status":
             self._json(200, {"resemble": {"configured": bool(os.environ.get("RESEMBLE_API_KEY", "").strip())}})
+        elif parsed.path == '/api/local/status':
+            self._json(200, local_status())
+        elif parsed.path == '/api/local/voices':
+            self._json(200, {'voices':[{'id':'kokoro-'+vid,'voiceId':vid,'name':name+' · Kokoro','owner':'hexgrad / Kokoro',
+                'provider':'kokoro','gender':gender,'source':'BUILTIN_LOCAL','packageType':'MODEL_VOICE',
+                'pace':1,'exaggeration':0.5,'previewUrl':'/api/local/preview/'+vid,'referenceUrl':None,
+                'description':'Distinct local Kokoro model voice. No account or browser model download required.'}
+                for vid,name,gender in LOCAL_VOICES]})
+        elif parsed.path.startswith('/api/local/preview/'):
+            vid = parsed.path.rsplit('/',1)[-1]
+            if vid not in [v[0] for v in LOCAL_VOICES]:
+                self._json(404, {'error':'Unknown preview'})
+            else:
+                try:
+                    audio = local_request(KOKORO_URL, '/preview/'+vid, binary=True)
+                    self.send_response(200)
+                    self.send_header('Content-Type','audio/wav')
+                    self.send_header('Content-Length',str(len(audio)))
+                    self.end_headers()
+                    self.wfile.write(audio)
+                except Exception:
+                    self._json(404, {'error':'Preview is not ready yet.'})
         elif parsed.path == "/api/resemble/voices":
             self._voices(parsed.query)
         elif is_api:
@@ -217,6 +274,9 @@ class StudioHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
         if not self._guard(api=True):
             return
+        if urlsplit(self.path).path == '/api/local/synthesize':
+            self._local_synthesize()
+            return
         if urlsplit(self.path).path != "/api/resemble/synthesize":
             self._json(404, {"error": "Unknown endpoint."})
             return
@@ -262,8 +322,48 @@ class StudioHandler(SimpleHTTPRequestHandler):
         except ProviderError as exc:
             self._json(502, {"error": str(exc)})
 
+    def _local_synthesize(self):
+        if self.headers.get_content_type() != 'application/json':
+            self._json(415, {'error':'JSON required'})
+            return
+        try:
+            length = int(self.headers.get('Content-Length','0'))
+            if not 0<length<=MAX_BODY or self.headers.get('Transfer-Encoding'):
+                raise ValueError()
+            body = json.loads(self.rfile.read(length))
+            text, profile = body['text'], body['voicePackageId']
+            if not isinstance(text,str) or not 1<=len(text.strip())<=1500 or len(text)>1500:
+                raise ValueError()
+            if profile not in ['agent-lee-voice-one']+['kokoro-'+v[0] for v in LOCAL_VOICES]:
+                raise ValueError()
+        except (ValueError, KeyError, TypeError):
+            self._json(400, {'error':'Choose a supported local voice and 1–1500 text characters.'})
+            return
+        try:
+            if profile.startswith('kokoro-'):
+                result = local_request(KOKORO_URL, '/synthesize', {'voiceId':profile[7:],'text':text}, timeout=180)
+            elif CLONE and CLONE.container:
+                result = CLONE.synthesize(text)
+            else:
+                started = time.monotonic()
+                result = local_request(XTTS_URL, '/tts', {'text':text,'voice':'LEEWAY_VOICE::AGENT_LEE::DEFAULT_CLONE',
+                    'language':'en','speed':1.0}, timeout=240)
+                audio_name = str(result.get('audio_path','')).replace('\\','/').rsplit('/',1)[-1]
+                if not re.fullmatch(r'[A-Za-z0-9_.-]+\.wav',audio_name):
+                    raise ValueError()
+                audio = local_request(XTTS_URL,'/audio/'+audio_name,binary=True)
+                result = {'audioContent':base64.b64encode(audio).decode(),'format':'wav','sampleRate':24000,
+                    'engine':'xtts-v2-existing-service','metrics':{'generationMs':(time.monotonic()-started)*1000}}
+            self._json(200,result)
+        except RuntimeError as exc:
+            self._json(503,{'error':str(exc)})
+        except Exception:
+            self._json(503,{'error':'Local voice service unavailable or busy. Check local status and adapter logs.'})
+
 
 def main():
+    global CLONE
+    CLONE = CloneWorker()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8877)
     parser.add_argument("--directory", type=Path, default=Path(__file__).resolve().parents[1])
@@ -280,6 +380,7 @@ def main():
         pass
     finally:
         server.server_close()
+        CLONE.close()
 
 
 if __name__ == "__main__":

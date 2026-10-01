@@ -1,0 +1,50 @@
+[
+  {
+    "voiceId": "af_heart",
+    "text": "Good morning. Let us take a clear look at what matters, make a thoughtful decision, and move forward with confidence.",
+    "modelHash": "fbae9257e1e05ffc727e951ef9b9c98418e6d79f1c9b6b13bd59f5c9028a1478",
+    "audioHash": "accfb5d2852b4a6e407abd492a36b4b59a2cc586ad4efd8ff4ac0d76604aab0a",
+    "generationMs": 3893.4867000000004,
+    "audioSeconds": 7.05
+  },
+  {
+    "voiceId": "af_bella",
+    "text": "Good morning. Let us take a clear look at what matters, make a thoughtful decision, and move forward with confidence.",
+    "modelHash": "fbae9257e1e05ffc727e951ef9b9c98418e6d79f1c9b6b13bd59f5c9028a1478",
+    "audioHash": "45589e7967a67ba0f901d0c0df663c86ec19863c7979332d93dbd332a595e75a",
+    "generationMs": 3946.8346999999994,
+    "audioSeconds": 7.425
+  },
+  {
+    "voiceId": "af_nicole",
+    "text": "Good morning. Let us take a clear look at what matters, make a thoughtful decision, and move forward with confidence.",
+    "modelHash": "fbae9257e1e05ffc727e951ef9b9c98418e6d79f1c9b6b13bd59f5c9028a1478",
+    "audioHash": "f765d67936aa8058e56d1ca33f89503469aab147e4fcddfaf140a154d2779e75",
+    "generationMs": 6157.696399999999,
+    "audioSeconds": 10.625
+  },
+  {
+    "voiceId": "am_fenrir",
+    "text": "Good morning. Let us take a clear look at what matters, make a thoughtful decision, and move forward with confidence.",
+    "modelHash": "fbae9257e1e05ffc727e951ef9b9c98418e6d79f1c9b6b13bd59f5c9028a1478",
+    "audioHash": "2573709d29f55b9478bbaf18bfd8c2ed3bb643db4008dd70eac3d12b601bc114",
+    "generationMs": 7425.6885,
+    "audioSeconds": 6.75
+  },
+  {
+    "voiceId": "am_michael",
+    "text": "Good morning. Let us take a clear look at what matters, make a thoughtful decision, and move forward with confidence.",
+    "modelHash": "fbae9257e1e05ffc727e951ef9b9c98418e6d79f1c9b6b13bd59f5c9028a1478",
+    "audioHash": "22463f423dc2c8487914af5b8f74f5a37b07a8590c354c46ccab04a68881e404",
+    "generationMs": 6605.729800000001,
+    "audioSeconds": 7.875
+  },
+  {
+    "voiceId": "am_puck",
+    "text": "Good morning. Let us take a clear look at what matters, make a thoughtful decision, and move forward with confidence.",
+    "modelHash": "fbae9257e1e05ffc727e951ef9b9c98418e6d79f1c9b6b13bd59f5c9028a1478",
+    "audioHash": "fdfb096a243637df1e7f5a222af23cd4ab0c3f2e16170fc31937ff0ce871a2f8",
+    "generationMs": 5890.8989,
+    "audioSeconds": 6.85
+  }
+]

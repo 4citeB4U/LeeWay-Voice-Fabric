@@ -48,9 +48,9 @@
       const worker=this.worker=new Worker(this.options.workerURL||WORKER_URL,{type:'module'});
       worker.onmessage=({data:message})=>{
         const request=this.pending.get(message.id);if(!request)return;
-        if(message.type==='progress'){if(request.type==='load'){clearTimeout(request.timer);request.timer=setTimeout(request.timeout,15*60_000);}request.progress?.(message.data);return;}
+        if(message.type==='progress'){request.progress?.(message.data);return;}
         this.pending.delete(message.id);clearTimeout(request.timer);
-        if(message.type==='error')request.reject(new Error(message.data.message));else request.resolve(message.data);
+        if(message.type==='error'){const error=new Error(message.data.message);error.retryableGPU=message.data.retryableGPU===true;request.reject(error);}else request.resolve(message.data);
       };
       worker.onerror=event=>{
         for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(new Error(event.message||'Browser voice worker failed. Reload voice to retry.'));}
@@ -81,21 +81,36 @@
     // Preparation can run before a gesture; actual speech still follows user action.
     async load(onProgress=()=>{}){
       if(this.ready)return {device:this.device};if(this.loading)return this.loading;
-      const lifecycle=this.lifecycle;
-      this.loading=(async()=>{
+      const lifecycle=this.lifecycle,controller=new AbortController();this.loadController=controller;
+      let deadlineTimer;
+      const operation=(async()=>{
         // Prepare decoding without requesting microphone or audible playback.
         await this.audioContext();if(lifecycle!==this.lifecycle)throw aborted();
         onProgress({status:'initiate',file:'Chatterbox voice',total:LeeWayBrowserVoice.download.webgpuBytes});
-        const result=await this.request('load',{device:this.options.device},onProgress);if(lifecycle!==this.lifecycle)throw aborted();this.device=result.device;
+        let result;
+        try{result=await this.request('load',{device:this.options.device},onProgress);}
+        catch(error){
+          if(lifecycle!==this.lifecycle)throw aborted();
+          // Only an explicitly classified GPU compilation/device error retries.
+          // Termination releases inaccessible partial sessions before a new backend.
+          this.resetWorker(error);
+          if(!error.retryableGPU||this.options.device==='wasm')throw error;
+          onProgress({status:'warning',message:'WebGPU initialization failed. Retrying once on CPU; a different model variant may need downloading.'});
+          result=await this.request('load',{device:'wasm'},onProgress);
+        }
+        if(lifecycle!==this.lifecycle)throw aborted();this.device=result.device;
         this.capabilities={exaggeration:result.exaggerationSupported!==false,temperature:true,topK:true,topP:false};
         if(this.options.skipDefaultReference){this.ready=true;onProgress({status:'ready',device:this.device});return result;}
         onProgress({message:"Preparing Agent Lee's voice reference..."});
-        const response=await fetch(DEFAULT_REFERENCE);if(!response.ok)throw new Error('Default voice reference could not be downloaded.');
+        const response=await fetch(DEFAULT_REFERENCE,{signal:controller.signal});if(!response.ok)throw new Error('Default voice reference could not be downloaded.');
         const blob=await response.blob();if(lifecycle!==this.lifecycle)throw aborted();
         await this.setReference(blob);if(lifecycle!==this.lifecycle)throw aborted();this.ready=true;
         onProgress({status:'ready',device:this.device});return result;
       })();
-      try{return await this.loading;}finally{this.loading=null;}
+      const deadline=new Promise((_,reject)=>{deadlineTimer=setTimeout(()=>{if(lifecycle!==this.lifecycle)return;const error=new Error('Browser model preparation exceeded its 15 minute limit. Cancelled; retry explicitly or choose a local server voice.');++this.lifecycle;reject(error);controller.abort();this.resetWorker(error);},15*60_000);});
+      let onAbort;const cancelled=new Promise((_,reject)=>{onAbort=()=>reject(aborted());controller.signal.addEventListener('abort',onAbort,{once:true});});
+      const loading=Promise.race([operation,deadline,cancelled]);this.loading=loading;
+      try{return await loading;}catch(error){if(lifecycle===this.lifecycle){controller.abort();this.resetWorker(error);}throw error;}finally{clearTimeout(deadlineTimer);controller.signal.removeEventListener('abort',onAbort);if(this.loading===loading)this.loading=null;if(this.loadController===controller)this.loadController=null;}
     }
     // Use an owned/licensed reference. Audio is decoded locally; it is not uploaded.
     async setReference(blob){
@@ -155,12 +170,16 @@
         clearTimeout(request.timer);request.reject(aborted());this.pending.delete(id);
       }
     }
+    resetWorker(error=aborted()){
+      this.worker?.terminate();this.worker=null;this.ready=false;this.device=null;this.capabilities=null;
+      for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(error);}this.pending.clear();
+    }
+    cancelLoad(){return this.dispose();}
     async dispose(){
-      ++this.lifecycle;this.stop();this.ready=false;
+      ++this.lifecycle;this.stop();this.ready=false;this.loadController?.abort();this.loadController=null;this.loading=null;
       // Terminating the worker also releases outstanding inference/model resources.
-      this.worker?.terminate();this.worker=null;
-      for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(aborted());}this.pending.clear();
-      if(this.audio){await this.audio.close().catch(()=>{});this.audio=null;}
+      this.resetWorker();
+      const audio=this.audio;this.audio=null;if(audio)await audio.close().catch(()=>{});
     }
   }
   root.LeeWayBrowserVoice=LeeWayBrowserVoice;
