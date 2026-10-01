@@ -57,7 +57,8 @@ async function prepare(){
   try{
     const pkg=await voiceRegistry.get(VOICE_ID);
     if(!pkg)throw new Error('VOICE_ONE_PACKAGE_NOT_FOUND');
-    await voice.load(progress=>setState('PREPARING_VOICE_ONE',{progress}));
+    const loaded=await voice.load(progress=>setState('PREPARING_VOICE_ONE',{progress}));
+    state.device=loaded.device;
     const blob=await voiceRegistry.audio(VOICE_ID);
     if(!blob)throw new Error('VOICE_ONE_REFERENCE_NOT_FOUND');
     await voice.setReference(blob);

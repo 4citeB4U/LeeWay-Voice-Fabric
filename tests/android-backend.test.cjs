@@ -12,3 +12,13 @@ for(const [search,expected] of [['','auto'],['?device=wasm','wasm'],['?device=un
   assert.equal(context.LeeWayAndroidVoice.voicePackageId,'agent-lee-voice-one');
  });
 }
+test('Android readiness reports the backend that actually loaded',async()=>{
+ let ready;
+ const context={URLSearchParams,location:{search:'?device=wasm'},document:{querySelector:()=>null},
+ LeeWayBrowserVoice:class{async load(){return {device:'wasm'};}async setReference(){}setPace(){}},
+ voiceRegistry:{get:async()=>({provider:'chatterbox',pace:1.1,exaggeration:.25}),audio:async()=>({})},
+ LeeWayPocketNative:{onReady:json=>ready=JSON.parse(json)}};
+ vm.runInNewContext(source,context);
+ const result=await context.LeeWayAndroidVoice.prepare();
+ assert.equal(result.device,'wasm');assert.equal(ready.device,'wasm');assert.equal(ready.ready,true);
+});

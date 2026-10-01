@@ -4,7 +4,8 @@
   const REVISION='3cab09af388d3f02bba43443fce88c1f4525ac43';
   const sourceURL=typeof document!=='undefined'?document.currentScript?.src:null;
   const DEFAULT_REFERENCE='https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav';
-  const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v=20260929-arch1',sourceURL).href:'/src/chatterbox.worker.js?v=20260928-sampling1';
+  const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v=20260930-sequential1',sourceURL).href:'/src/chatterbox.worker.js?v=20260930-sequential1';
+  const CACHE_MODULE_URL=sourceURL?new URL('voice-model-cache.js',sourceURL).href:'/src/voice-model-cache.js';
   function aborted(){return new DOMException('Speech was stopped.','AbortError');}
   function chunks(text){
     const words=String(text).replace(/\s+/g,' ').trim().split(' '),result=[];let next='';
@@ -31,12 +32,19 @@
         const request=this.pending.get(message.id);if(!request)return;
         if(message.type==='progress'){if(request.type==='load'){clearTimeout(request.timer);request.timer=setTimeout(request.timeout,15*60_000);}request.progress?.(message.data);return;}
         this.pending.delete(message.id);clearTimeout(request.timer);
-        if(message.type==='error')request.reject(new Error(message.data.message));else request.resolve(message.data);
+        if(message.type==='error'){
+          const error=new Error(message.data.message);request.reject(error);
+          if(request.type==='load'||message.data.fatal)this.failWorker(worker,error);
+        }else request.resolve(message.data);
       };
       worker.onerror=event=>{
-        for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(new Error(event.message||'Browser voice worker failed. Reload voice to retry.'));}
-        this.pending.clear();this.ready=false;worker.terminate();if(this.worker===worker)this.worker=null;
+        this.failWorker(worker,new Error(event.message||'Browser voice worker failed. Reload voice to retry.'));
       };
+    }
+    failWorker(worker,error){
+      if(this.worker!==worker)return;
+      for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(error);}
+      this.pending.clear();this.ready=false;worker.terminate();this.worker=null;
     }
     request(type,data={},progress,transfer=[]){
       this.createWorker();const id=++this.id;
@@ -66,6 +74,16 @@
       this.loading=(async()=>{
         // Prepare decoding without requesting microphone or audible playback.
         await this.audioContext();if(lifecycle!==this.lifecycle)throw aborted();
+        // The proven mobile CPU path stages on the page before native sessions
+        // can block the worker's fetch readers. Custom/GPU/Turbo loaders stay unchanged.
+        if(this.options.device==='wasm'&&!this.options.workerURL){
+          const {stageVoiceAssets}=await import(CACHE_MODULE_URL);
+          if(lifecycle!==this.lifecycle)throw aborted();
+          const controller=this.prefetchController=new AbortController();
+          try{await stageVoiceAssets({signal:controller.signal,onProgress});}
+          finally{if(this.prefetchController===controller)this.prefetchController=null;}
+          if(lifecycle!==this.lifecycle)throw aborted();
+        }
         onProgress({status:'initiate',file:'Chatterbox voice',total:LeeWayBrowserVoice.download.webgpuBytes});
         const result=await this.request('load',{device:this.options.device},onProgress);if(lifecycle!==this.lifecycle)throw aborted();this.device=result.device;
         onProgress({message:"Preparing Agent Lee's voice reference..."});
@@ -131,6 +149,7 @@
     }
     async dispose(){
       ++this.lifecycle;this.stop();this.ready=false;
+      this.prefetchController?.abort(aborted());this.prefetchController=null;
       // Terminating the worker also releases outstanding inference/model resources.
       this.worker?.terminate();this.worker=null;
       for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(aborted());}this.pending.clear();
