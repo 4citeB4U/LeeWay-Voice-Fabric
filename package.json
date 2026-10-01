@@ -4,6 +4,6 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "check": "node --check src/voice-sdk.js && node --check src/bridge-runtime.js && node --check src/browser-voice.js && node --check src/speech-pipeline.js && node --check src/chatterbox.worker.js && node --check src/lab.js"
+    "check": "node --check src/voice-sdk.js && node --check src/bridge-runtime.js && node --check src/browser-voice.js && node --check src/speech-pipeline.js && node --check src/chatterbox.worker.js && node --check src/voice-model-cache.js && node --check src/voice-cpu-sessions.js && node --check src/native-decoder-client.js && node --check src/lab.js"
   }
 }
