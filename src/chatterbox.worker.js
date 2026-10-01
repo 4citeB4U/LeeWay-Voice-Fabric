@@ -2,7 +2,8 @@
 // Model card/license: https://huggingface.co/onnx-community/chatterbox-ONNX
 import {ChatterboxModel,AutoConfig,AutoProcessor,Tensor,InterruptableStoppingCriteria,env} from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/+esm';
 import {createCpuSessions} from './voice-cpu-sessions.js';
-import {BASE,CACHE} from './voice-model-cache.js';
+import {BASE,CACHE,COMPONENTS} from './voice-model-cache.js';
+import {tensorToWire,waveformFromWire,waveformStats} from './native-decoder-client.js';
 
 const turbo=new URL(self.location.href).searchParams.get('model')==='turbo';
 const MODEL=turbo?'ResembleAI/chatterbox-turbo-ONNX':'onnx-community/chatterbox-ONNX';
@@ -13,6 +14,16 @@ env.backends.onnx.wasm.proxy=false;
 env.backends.onnx.webgpu.powerPreference='high-performance';
 let model,processor,speaker,device,epoch=0,chain=Promise.resolve();
 let activeRequestId=null;
+let activeRequestEpoch=0,nativeSequence=0;
+const nativePending=new Map();
+function nativeRequest(operation,payload){
+  if(operation==='decode'&&activeRequestEpoch!==epoch)return Promise.reject(Object.assign(Error('Speech request interrupted.'),{fatal:true}));
+  const callId=++nativeSequence;
+  return new Promise((resolve,reject)=>{
+    nativePending.set(callId,{resolve,reject});
+    reply(activeRequestId,'native-decoder',{callId,operation,payload});
+  });
+}
 const stopping=new InterruptableStoppingCriteria();
 const reply=(id,type,data={})=>self.postMessage({id,type,data});
 const progress=(id,data)=>reply(id,'progress',data);
@@ -23,7 +34,7 @@ self.addEventListener('unhandledrejection',event=>{
   }
 });
 function freeSpeaker(){if(speaker)for(const tensor of Object.values(speaker))tensor?.dispose?.();speaker=null;}
-async function load(id,requested){
+async function load(id,requested,useNativeDecoder=false){
   if(model&&processor)return {device,revision:REVISION};
   let adapter=null;
   if(requested!=='wasm'&&self.navigator.gpu)try{adapter=await navigator.gpu.requestAdapter({powerPreference:'high-performance'})}catch{}
@@ -38,12 +49,23 @@ async function load(id,requested){
     const cache=await caches.open(CACHE),generation=await cache.match(BASE+'generation_config.json');
     if(!generation?.ok)throw Error('Canonical voice generation config is not cached.');
     const generation_config=await generation.json();
-    const sessions=await createCpuSessions({ort,config,onProgress:data=>progress(id,data)});
+    if(useNativeDecoder)await nativeRequest('prepare');
+    const components=useNativeDecoder?COMPONENTS.filter(c=>c.key!=='conditional_decoder'):COMPONENTS;
+    const sessions=await createCpuSessions({ort,config,components,onProgress:data=>progress(id,data)});
+    if(useNativeDecoder)sessions.conditional_decoder={
+      inputNames:['speech_tokens','speaker_embeddings','speaker_features'],outputNames:['waveform'],
+      config:{dtype:'fp32',device:'native-cpu'},release:async()=>{},
+      async run(feeds){
+        progress(activeRequestId,{message:'Rendering canonical voice with native CPU decoder'});
+        const result=await nativeRequest('decode',Object.fromEntries(this.inputNames.map(name=>[name,tensorToWire(feeds[name])])));
+        return {waveform:waveformFromWire(result,ort)};
+      }
+    };
     try{
       model=new ChatterboxModel(config,sessions,{generation_config});
       if(!model.can_generate)throw Error('Canonical voice model cannot generate.');
       processor=await AutoProcessor.from_pretrained(MODEL,{revision:REVISION,progress_callback:data=>progress(id,data)});
-      return {device,model:MODEL,revision:REVISION,dtype,loader:'SEQUENTIAL_CACHED_CPU',exaggerationSupported:model.sessions.embed_tokens.inputNames.includes('exaggeration')};
+      return {device,model:MODEL,revision:REVISION,dtype,decoderBackend:useNativeDecoder?'onnxruntime-android-cpu':'wasm',loader:'SEQUENTIAL_CACHED_CPU',exaggerationSupported:model.sessions.embed_tokens.inputNames.includes('exaggeration')};
     }catch(error){
       model=null;processor=null;
       for(const session of Object.values(sessions))await session.release().catch(()=>{});
@@ -60,7 +82,7 @@ async function load(id,requested){
 }
 async function run(message){
   const {id,type,data={},epoch:turn=epoch}=message;
-  if(type==='load')return load(id,data.device);
+  if(type==='load')return load(id,data.device,data.nativeDecoder===true);
   if(type==='dispose'){freeSpeaker();await model?.dispose();model=null;processor=null;return {};}
   if(turn!==epoch)throw new Error('Speech request was interrupted.');
   if(!model||!processor)throw new Error('Load browser voice before requesting speech.');
@@ -87,19 +109,28 @@ async function run(message){
       waveform=await model.generate({...inputs,...speaker,exaggeration,do_sample:true,temperature:.8,top_p:.95,top_k:50,max_new_tokens:384,stopping_criteria:[stopping],streamer});
       if(turn!==epoch)throw new Error('Speech request was interrupted.');
       const samples=waveform.data,buffer=samples.buffer.slice(samples.byteOffset,samples.byteOffset+samples.byteLength);
-      self.postMessage({id,type:'complete',data:{audio:buffer,sampleRate:24000,timings:{generationMs:performance.now()-started,tokenPhaseMs:decodedAt===null?null:decodedAt-started,waveformPhaseMs:decodedAt===null?null:performance.now()-decodedAt,audioSeconds:samples.length/24000}}},[buffer]);return null;
+      const metrics=waveformStats(samples);
+      progress(id,{stage:'waveform-ready',message:'Voice waveform rendered',...metrics});
+      self.postMessage({id,type:'complete',data:{audio:buffer,sampleRate:24000,metrics,timings:{generationMs:performance.now()-started,tokenPhaseMs:decodedAt===null?null:decodedAt-started,waveformPhaseMs:decodedAt===null?null:performance.now()-decodedAt,audioSeconds:samples.length/24000}}},[buffer]);return null;
     }finally{waveform?.dispose?.();for(const value of Object.values(inputs))value?.dispose?.();}
   }
   throw new Error('Unknown voice-worker command.');
 }
 self.onmessage=event=>{
   const message=event.data;
+  if(message.type==='native-decoder-result'){
+    const request=nativePending.get(message.callId);if(!request)return;
+    nativePending.delete(message.callId);
+    if(message.error)request.reject(Object.assign(Error(message.error),{fatal:true}));else request.resolve(message.result);
+    return;
+  }
   if(message.type==='stop'){epoch=message.epoch;stopping.interrupt();return;}
   // Every operation uses one serial work lane. Old queued requests are discarded.
   chain=chain.then(async()=>{
     activeRequestId=message.id;
+    activeRequestEpoch=message.epoch??epoch;
     try{const result=await run(message);if(result!==null)reply(message.id,'complete',result)}
-    catch(error){reply(message.id,'error',{message:error.message||'Browser voice failed.'})}
+    catch(error){reply(message.id,'error',{message:error.message||'Browser voice failed.',fatal:!!error.fatal})}
     finally{activeRequestId=null;}
   });
 };

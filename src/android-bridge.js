@@ -15,7 +15,7 @@ const VOICE_ID='agent-lee-voice-one';
 // An Android adapter can avoid a crashing GPU driver without changing Voice One.
 const requestedDevice=new URLSearchParams(globalThis.location?.search||'').get('device');
 const device=requestedDevice==='wasm'?'wasm':undefined;
-const voice=new globalThis.LeeWayBrowserVoice({device,onUnavailable:error=>{
+const voice=new globalThis.LeeWayBrowserVoice({device,nativeDecoder:globalThis.LeeWayPocketDecoder,onUnavailable:error=>{
   state.ready=false;state.device=null;
   state.lastError=error?.message||'Voice runtime is unavailable.';
   emit('onError',{stage:'runtime',error:state.lastError,voicePackageId:VOICE_ID});

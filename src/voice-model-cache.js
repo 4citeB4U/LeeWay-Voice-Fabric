@@ -18,11 +18,12 @@ export const ASSETS=[
 // Cache writes consume a stream; no second in-memory copy of a 591 MB model.
 // One file at a time also avoids competing native model initialization/downloads.
 export async function stageVoiceAssets({signal,onProgress=()=>{},assets=ASSETS,
-  cacheStorage=globalThis.caches,fetcher=globalThis.fetch,idleMs=60000,fileMs=15*60000,attempts=2}={}){
+  cacheStorage=globalThis.caches,fetcher=globalThis.fetch,idleMs=60000,fileMs=15*60000,attempts=2,nativeDecoder=false}={}){
   if(!cacheStorage)throw Error('Voice model storage is unavailable.');
   const cache=await cacheStorage.open(CACHE);
   const abortError=()=>signal?.reason||new DOMException('Voice preparation cancelled.','AbortError');
   for(const asset of assets){
+    if(nativeDecoder&&asset.file.startsWith('onnx/conditional_decoder.'))continue;
     if(signal?.aborted)throw abortError();
     const url=BASE+asset.file;
     const cached=await cache.match(url);

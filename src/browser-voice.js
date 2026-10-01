@@ -6,6 +6,7 @@
   const DEFAULT_REFERENCE='https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav';
   const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v=20260930-sequential1',sourceURL).href:'/src/chatterbox.worker.js?v=20260930-sequential1';
   const CACHE_MODULE_URL=sourceURL?new URL('voice-model-cache.js',sourceURL).href:'/src/voice-model-cache.js';
+  const NATIVE_MODULE_URL=sourceURL?new URL('native-decoder-client.js',sourceURL).href:'/src/native-decoder-client.js';
   function aborted(){return new DOMException('Speech was stopped.','AbortError');}
   function chunks(text){
     const words=String(text).replace(/\s+/g,' ').trim().split(' '),result=[];let next='';
@@ -29,6 +30,15 @@
       if(this.worker)return;
       const worker=this.worker=new Worker(this.options.workerURL||WORKER_URL,{type:'module'});
       worker.onmessage=({data:message})=>{
+        if(this.worker!==worker)return;
+        if(message.type==='native-decoder'){
+          const data=message.data;
+          if(!this.nativeDecoder){worker.postMessage({type:'native-decoder-result',callId:data.callId,error:'Native decoder unavailable.'});return;}
+          this.nativeDecoder.request(data.operation,data.payload,progress=>this.pending.get(message.id)?.progress?.(progress))
+            .then(result=>{if(this.worker===worker)worker.postMessage({type:'native-decoder-result',callId:data.callId,result});})
+            .catch(error=>{if(this.worker===worker)worker.postMessage({type:'native-decoder-result',callId:data.callId,error:error.message});});
+          return;
+        }
         const request=this.pending.get(message.id);if(!request)return;
         if(message.type==='progress'){if(request.type==='load'){clearTimeout(request.timer);request.timer=setTimeout(request.timeout,15*60_000);}request.progress?.(message.data);return;}
         this.pending.delete(message.id);clearTimeout(request.timer);
@@ -45,6 +55,7 @@
       if(this.worker!==worker)return;
       for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(error);}
       this.pending.clear();this.ready=false;worker.terminate();this.worker=null;
+      this.nativeDecoder?.cancel();
       try{this.options.onUnavailable?.(error);}catch{}
     }
     request(type,data={},progress,transfer=[]){
@@ -77,15 +88,19 @@
         // The proven mobile CPU path stages on the page before native sessions
         // can block the worker's fetch readers. Custom/GPU/Turbo loaders stay unchanged.
         if(this.options.device==='wasm'&&!this.options.workerURL){
+          if(this.options.nativeDecoder&&!this.nativeDecoder){
+            const {createNativeDecoderClient}=await import(NATIVE_MODULE_URL);
+            this.nativeDecoder=createNativeDecoderClient(this.options.nativeDecoder);
+          }
           const {stageVoiceAssets}=await import(CACHE_MODULE_URL);
           if(lifecycle!==this.lifecycle)throw aborted();
           const controller=this.prefetchController=new AbortController();
-          try{await stageVoiceAssets({signal:controller.signal,onProgress});}
+          try{await stageVoiceAssets({signal:controller.signal,onProgress,nativeDecoder:!!this.nativeDecoder});}
           finally{if(this.prefetchController===controller)this.prefetchController=null;}
           if(lifecycle!==this.lifecycle)throw aborted();
         }
         onProgress({status:'initiate',file:'Chatterbox voice',total:LeeWayBrowserVoice.download.webgpuBytes});
-        const result=await this.request('load',{device:this.options.device},onProgress);if(lifecycle!==this.lifecycle)throw aborted();this.device=result.device;
+        const result=await this.request('load',{device:this.options.device,nativeDecoder:!!this.nativeDecoder},onProgress);if(lifecycle!==this.lifecycle)throw aborted();this.device=result.device;
         onProgress({message:"Preparing Agent Lee's voice reference..."});
         let blob=referenceBlob;
         if(!blob){
@@ -145,6 +160,7 @@
     setPace(value){this.playbackRate=Math.max(.85,Math.min(1.3,Number(value)||1.1));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
     stop(){
       ++this.epoch;this.worker?.postMessage({type:'stop',epoch:this.epoch});
+      this.nativeDecoder?.cancel(true);
       for(const source of this.sources){try{source.stop()}catch{}}
       for(const finish of [...this.finishPlayback])finish();this.sources.clear();
       for(const [id,request] of this.pending)if(request.type==='generate'){
@@ -154,6 +170,7 @@
     async dispose(){
       ++this.lifecycle;this.stop();this.ready=false;
       this.prefetchController?.abort(aborted());this.prefetchController=null;
+      this.nativeDecoder?.cancel();
       // Terminating the worker also releases outstanding inference/model resources.
       this.worker?.terminate();this.worker=null;
       for(const request of this.pending.values()){clearTimeout(request.timer);request.reject(aborted());}this.pending.clear();
