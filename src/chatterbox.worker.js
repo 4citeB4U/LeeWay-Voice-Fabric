@@ -33,7 +33,7 @@ async function load(id,requested){
     const ort=await import('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/webgpu/+esm');
     ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;
     const prefix='https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/dist/';
-    ort.env.wasm.wasmPaths={mjs:prefix+'ort-wasm-simd-threaded.asyncify.mjs',wasm:prefix+'ort-wasm-simd-threaded.asyncify.wasm'};
+    ort.env.wasm.wasmPaths={mjs:prefix+'ort-wasm-simd-threaded.mjs',wasm:prefix+'ort-wasm-simd-threaded.wasm'};
     const config=await AutoConfig.from_pretrained(MODEL,{revision:REVISION,progress_callback:data=>progress(id,data)});
     const cache=await caches.open(CACHE),generation=await cache.match(BASE+'generation_config.json');
     if(!generation?.ok)throw Error('Canonical voice generation config is not cached.');
