@@ -7,7 +7,9 @@ const failures=[];
 const must=(ok,msg)=>{if(!ok){failures.push(msg);console.error('FAIL',msg)}else console.log('PASS',msg)};
 
 try{
-  await page.goto(BASE,{waitUntil:'networkidle',timeout:120000});
+  // The lab starts model downloads after rendering. Catalog readiness must not
+  // wait for unrelated inference assets to finish downloading.
+  await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:120000});
   must((await page.title())==='LeeWay Voice Fabric','production title');
   await page.waitForSelector('.voice-item',{timeout:30000});
   const labels=await page.locator('.voice-item').allTextContents();
