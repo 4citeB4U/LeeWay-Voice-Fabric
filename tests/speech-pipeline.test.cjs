@@ -4,7 +4,7 @@ function setup(){
  const scope={performance,DOMException,AbortController,Event,setTimeout,clearTimeout,URL,console};vm.createContext(scope);
  for(const file of ['browser-voice.js','speech-pipeline.js'])vm.runInContext(fs.readFileSync(__dirname+'/../src/'+file,'utf8'),scope);
  const voice=new scope.LeeWayBrowserVoice();voice.ready=true;
- return {voice,Stream:scope.LeeWaySpeechStream,metrics:scope.LeeWayVoiceMetrics};
+ return {voice,scope,Stream:scope.LeeWaySpeechStream,metrics:scope.LeeWayVoiceMetrics};
 }
 test('first complete clause reaches synthesis before model completion',async()=>{
  const {voice,Stream}=setup(),stream=new Stream(),requests=[];voice.request=async(type,data)=>{requests.push(data.text);return {}};voice.play=async()=>{};
@@ -49,4 +49,65 @@ test('a synthesis failure stops the stream and does not report unplayed content 
  voice.request=async()=>{throw new Error('GPU unavailable')};voice.play=async()=>played++;
  stream.push('This sentence cannot be synthesized. ');stream.end();
  await assert.rejects(voice.speakStream(stream,{onRendered:()=>rendered++}),/GPU unavailable/);assert.equal(played,0);assert.equal(rendered,0);assert.equal(stream.closed,true);
+});
+
+test('complete sentences retain context beyond eighteen words within the character budget',async()=>{
+ const {voice,Stream}=setup(),text='We can take the time to say each of these small words in one clear sentence and keep the thought together.';
+ assert.equal(text.split(' ').length>18,true);
+ assert.deepEqual(Array.from(voice.constructor.chunks(text)),[text]);
+ const stream=new Stream();stream.push(text);stream.end();const chunks=[];for await(const chunk of stream)chunks.push(chunk);
+ assert.deepEqual(chunks,[text]);
+});
+
+test('long sentences split on a nearby clause and keep all words within the safe budget',async()=>{
+ const {voice,Stream}=setup();
+ const first='We can preserve the whole opening clause,',text=first+' while the rest of this deliberately extended sentence gives the voice enough context to speak naturally and still stays subject to the same strict character budget for generation.';
+ const expected=Array.from(voice.constructor.chunks(text));assert.equal(expected[0],first);assert.ok(expected.every(chunk=>chunk.length<=180));assert.equal(expected.join(' '),text);
+ const stream=new Stream();stream.push(text);stream.end();const chunks=[];for await(const chunk of stream)chunks.push(chunk);assert.deepEqual(chunks,expected);
+});
+
+test('long tokens never escape the generation budget or lose characters',async()=>{
+ const {voice,Stream}=setup(),text='x'.repeat(600);
+ const expected=Array.from(voice.constructor.chunks(text));assert.ok(expected.every(chunk=>chunk.length<=180));assert.equal(expected.join(''),text);
+ const stream=new Stream();stream.push(text);stream.end();const chunks=[];for await(const chunk of stream)chunks.push(chunk);assert.deepEqual(chunks,expected);
+});
+
+test('direct speech prepares one following sentence during playback and stops pending work',async()=>{
+ const {voice}=setup(),requested=[],played=[];let finish;
+ voice.request=async(type,data)=>{requested.push(data.text);return {text:data.text}};
+ voice.play=result=>new Promise(resolve=>{played.push(result.text);finish=resolve});
+ const run=voice.speak('This is sentence one with enough words for a useful spoken segment. This is sentence two with enough words for a useful spoken segment. This is sentence three with enough words for a useful spoken segment.');
+ const rejection=assert.rejects(run,{name:'AbortError'});await tick();assert.equal(requested.length,2);assert.equal(played.length,1);
+ voice.stop();finish();await rejection;assert.equal(played.length,1);
+});
+
+test('browser voice uses the requested twenty-two percent faster pace by default',()=>{
+ const {voice}=setup();assert.equal(voice.playbackRate,1.22);voice.setPace(1.2);assert.equal(voice.playbackRate,1.2);voice.setPace('invalid');assert.equal(voice.playbackRate,1.22);
+});
+
+test('a cancelled slow reference cannot overwrite a newly selected speaker',async()=>{
+ const {voice,scope}=setup();let releaseOld;
+ const oldDecoded=new Promise(resolve=>releaseOld=resolve),encoded=[];
+ voice.audioContext=async()=>({decodeAudioData:async buffer=>new Uint8Array(buffer)[0]===1?oldDecoded:{duration:2,marker:2}});
+ scope.OfflineAudioContext=class{
+  createBufferSource(){return this.source={connect(){},start(){}};}
+  async startRendering(){return {getChannelData:()=>new Float32Array([this.source.buffer.marker])};}
+ };
+ voice.request=async(type,data)=>{encoded.push(new Float32Array(data.audio)[0]);};
+ const old=voice.setReference(new Blob([new Uint8Array([1])]));
+ const rejected=assert.rejects(old,{name:'AbortError'});await tick();
+ await voice.setReference(new Blob([new Uint8Array([2])]));
+ releaseOld({duration:2,marker:1});await rejected;
+ assert.deepEqual(encoded,[2]);
+});
+
+test('lab delivery adjustments made during preparation survive async loading',async()=>{
+ const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',textContent:'',scrollHeight:0});return nodes.get(id)};
+ const pkg={id:'agent-lee-voice-one',name:'Agent Lee',owner:'Creator',source:'BUILTIN',provider:'chatterbox',exaggeration:.25,pace:1};
+ let release,instance;const loaded=new Promise(resolve=>release=resolve);
+ class Voice {constructor(){instance=this;this.ready=false}setPace(value){this.playbackRate=Number(value)}async load(){await loaded;this.ready=true}async setReference(){}stop(){}}
+ const scope={console,queueMicrotask,setTimeout,clearTimeout,LeeWayBrowserVoice:Voice,voiceRegistry:{list:async()=>[pkg],get:async()=>pkg,audio:async()=>({})},document:{querySelector:node,querySelectorAll:()=>[]},addEventListener(){}};
+ vm.createContext(scope);vm.runInContext(fs.readFileSync(__dirname+'/../src/lab.js','utf8').replace(/^import .*?;\r?\n/,''),scope);
+ await tick();node('#delivery').value='.5';node('#delivery').onchange({target:node('#delivery')});node('#pace').value='1.03';node('#pace').oninput({target:node('#pace')});
+ release();await tick();assert.equal(instance.exaggeration,.5);assert.equal(instance.playbackRate,1.03);assert.equal(node('#state').textContent,'Agent Lee Voice One ready.');
 });

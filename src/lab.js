@@ -29,7 +29,7 @@ async function prepareSelected(){
  const pkg=await voiceRegistry.get(selectedId);if(!pkg)throw new Error('Select a voice package.');
  state(`Preparing ${pkg.name} automatically...`);await voice.load(()=>state('Loading Agent Lee Voice One...'));
  const blob=await voiceRegistry.audio(pkg.id);if(!blob)throw new Error('Voice reference audio unavailable.');
- await voice.setReference(blob);voice.exaggeration=Number(pkg.exaggeration);voice.setPace(pkg.pace);state('Agent Lee Voice One ready.');
+ await voice.setReference(blob);voice.exaggeration=Number($('#delivery').value);voice.setPace($('#pace').value);state('Agent Lee Voice One ready.');
  if(audioAuthorized&&!greetingSpoken){greetingSpoken=true;await voice.speak(VOICE_ONE_GREETING,{onState:state});}
 }
 $('#stop').onclick=()=>{voice.stop();state('Stopped speaking.');};

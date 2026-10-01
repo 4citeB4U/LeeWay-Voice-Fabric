@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 test('supplied canonical reference is encoded once without redundant default fetch',async()=>{
  let fetches=0,encodes=0,encoded;
- const context=vm.createContext({URL,DOMException,fetch:async()=>{fetches++;throw Error('Unexpected default fetch');}});
+ const context=vm.createContext({URL,DOMException,AbortController,setTimeout,clearTimeout,fetch:async()=>{fetches++;throw Error('Unexpected default fetch');}});
  vm.runInContext(fs.readFileSync('src/browser-voice.js','utf8'),context);
  const voice=vm.runInContext('new LeeWayBrowserVoice()',context),reference={size:720078};
  voice.audioContext=async()=>({});voice.request=async()=>({device:'wasm'});
@@ -11,7 +11,7 @@ test('supplied canonical reference is encoded once without redundant default fet
 });
 test('ordinary browser load retains its default reference behavior',async()=>{
  let fetches=0,encodes=0;
- const reference={size:720078},context=vm.createContext({URL,DOMException,fetch:async()=>{fetches++;return {ok:true,blob:async()=>reference};}});
+ const reference={size:720078},context=vm.createContext({URL,DOMException,AbortController,setTimeout,clearTimeout,fetch:async()=>{fetches++;return {ok:true,blob:async()=>reference};}});
  vm.runInContext(fs.readFileSync('src/browser-voice.js','utf8'),context);
  const voice=vm.runInContext('new LeeWayBrowserVoice()',context);
  voice.audioContext=async()=>({});voice.request=async()=>({device:'webgpu'});

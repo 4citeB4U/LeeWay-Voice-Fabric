@@ -81,7 +81,14 @@ async function load(id,requested,useNativeDecoder=false){
   if(!configResponse.ok)throw new Error('Chatterbox config could not be loaded.');
   const config=await configResponse.json();
   config.architectures=['ChatterboxModel'];
-  model=await ChatterboxModel.from_pretrained(MODEL,{revision:REVISION,config,device,dtype,progress_callback:data=>progress(id,data)});
+  try{model=await ChatterboxModel.from_pretrained(MODEL,{revision:REVISION,config,device,dtype,progress_callback:data=>progress(id,data)});}
+  catch(error){
+    const message=String(error?.message||error);
+    // Never turn HTTP/cache/download failures into another multi-GB attempt.
+    error.retryableGPU=device==='webgpu'&&!/fetch|network|download|http|quota|cache|file not found/i.test(message)&&/webgpu|gpu.?device|device.?lost|shader|wgsl/i.test(message);
+    freeSpeaker();try{await model?.dispose();}catch{}model=null;processor=null;
+    throw error;
+  }
   return {device,model:MODEL,revision:REVISION,dtype,exaggerationSupported:model.sessions.embed_tokens.inputNames.includes('exaggeration')};
 }
 async function run(message){
@@ -109,8 +116,11 @@ async function run(message){
       const started=performance.now();let decodedAt=null,steps=0;
       const streamer={put(){if(++steps%16===0)progress(id,{message:`Generating speech: ${steps} audio tokens...`})},end(){decodedAt=performance.now();progress(id,{message:'Rendering the speech waveform...'})}};
       const exaggeration=Number.isFinite(data.exaggeration)?Math.max(0,Math.min(1,data.exaggeration)):.25;
+      const temperature=Number.isFinite(data.temperature)?Math.max(.5,Math.min(1,data.temperature)):.8;
+      const top_k=Number.isFinite(data.top_k)?Math.round(Math.max(10,Math.min(100,data.top_k))):50;
       // Greedy decoding dropped whole phrases in the Voice One content check.
-      waveform=await model.generate({...inputs,...speaker,exaggeration,do_sample:true,temperature:.8,top_p:.95,top_k:50,max_new_tokens:384,stopping_criteria:[stopping],streamer});
+      // Transformers.js 4.3.0 has no top-p logits processor. Do not expose it as effective.
+      waveform=await model.generate({...inputs,...speaker,exaggeration,do_sample:true,temperature,top_k,max_new_tokens:384,stopping_criteria:[stopping],streamer});
       if(turn!==epoch)throw new Error('Speech request was interrupted.');
       const samples=waveform.data,buffer=samples.buffer.slice(samples.byteOffset,samples.byteOffset+samples.byteLength);
       const metrics=waveformStats(samples);
@@ -135,7 +145,7 @@ self.onmessage=event=>{
     activeRequestId=message.id;
     activeRequestEpoch=message.epoch??epoch;
     try{const result=await run(message);if(result!==null)reply(message.id,'complete',result)}
-    catch(error){reply(message.id,'error',{message:error.message||'Browser voice failed.',name:error.name,fatal:!!error.fatal})}
+    catch(error){if(message.type==='load'){freeSpeaker();try{await model?.dispose();}catch{}model=null;processor=null;}reply(message.id,'error',{message:error.message||'Browser voice failed.',retryableGPU:error.retryableGPU===true,name:error.name,fatal:!!error.fatal})}
     finally{activeRequestId=null;}
   });
 };

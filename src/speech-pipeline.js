@@ -18,20 +18,9 @@
     async next(){
       for(;;){
         if(this.error){this.dispose();throw this.error;}
-        const text=this.buffer;let cut=0;
-        const boundaries=/[.!?;:]\s+/g;let match;
-        while((match=boundaries.exec(text))){
-          const prefix=text.slice(0,match.index+1);
-          // Do not mistake abbreviations, initials, decimals or URLs for sentence ends.
-          if(/\b(?:Mr|Mrs|Ms|Dr|Prof|Jr|Sr|vs|etc)\.$/i.test(prefix)||/\b(?:[A-Z]\.)+$/.test(prefix))continue;
-          if(prefix.trim().split(/\s+/).length>=10){cut=match.index+1;break;}
-        }
+        const text=this.buffer;
         const words=[...text.matchAll(/\S+\s+/g)];
-        if(!cut&&this.flush&&words.length>=10)cut=words[Math.min(words.length,18)-1].index+words[Math.min(words.length,18)-1][0].length;
-        if(words.length>=18){const limit=words[17].index+words[17][0].length;if(!cut||cut>limit)cut=limit;}
-        if(cut>180)cut=text.lastIndexOf(' ',180);
-        if(!cut&&text.length>180){cut=text.lastIndexOf(' ',180);if(cut<1)cut=180;}
-        if(!cut&&this.closed)cut=text.length;
+        const cut=root.LeeWayBrowserVoice.segmentCut(text,{closed:this.closed,flush:this.flush&&words.length>=10});
         if(cut){this.buffer=text.slice(cut).trimStart();clearTimeout(this.timer);this.timer=null;this.flush=false;return {value:text.slice(0,cut).trim(),done:false};}
         if(this.closed){this.dispose();return {done:true};}
         await new Promise(resolve=>{this.wake=resolve;if(words.length>=10&&!this.timer)this.timer=setTimeout(()=>{this.flush=true;this.wake?.();},1200);});this.wake=null;

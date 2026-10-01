@@ -13,7 +13,7 @@ label{display:grid;gap:6px;margin:10px 0;color:#bcd0e1}input[type="text"],select
 hr{border:0;border-top:1px solid var(--line);margin:18px 0}@media(max-width:800px){.grid{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}.split,.controls{grid-template-columns:1fr}}
 </style>
 </head>
-<body><main>
+<body><div style="padding:14px;text-align:center;background:#15354e"><a href="studio.html" style="color:#fff;font-weight:bold">Open the full Voice Studio: voice profiles, upload, tuning and WAV download</a></div><main>
 <section class="hero"><div><div class="badge">LEEWAY · CANONICAL VOICE SERVICE</div><h1>Voice Fabric</h1><p>Create, audition, save and reuse voice packages for every LeeWay agent and worker. Reasoning models produce words; Voice Fabric owns how those words are spoken.</p></div><div><span class="status" id="state">Registry loading…</span></div></section>
 
 <div class="grid">
@@ -28,7 +28,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}@media(max-width:800p
 <label>Agent / worker owner <input id="newOwner" type="text" placeholder="Agent Name"></label>
 <label>Reference audio <input id="newReference" type="file" accept="audio/*"></label>
 <div class="split"><label>Delivery <select id="newDelivery"><option value=".15">Very calm</option><option value=".25" selected>Calm</option><option value=".5">Natural</option><option value=".7">Lively</option></select></label>
-<label>Pace <input id="newPace" type="number" min=".85" max="1.3" step=".05" value="1.1"></label></div>
+<label>Pace <input id="newPace" type="number" min=".85" max="1.3" step=".01" value="1.22"></label></div>
 <div class="row"><button class="primary" id="saveVoice">Save package</button><button id="exportVoice">Export selected</button><button class="danger" id="deleteVoice">Delete local package</button></div>
 </section>
 
@@ -37,7 +37,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}@media(max-width:800p
 <p id="selectedMeta" class="muted"></p>
 <div class="controls">
 <label>Delivery <select id="delivery"><option value=".15">Very calm</option><option value=".25">Calm</option><option value=".5">Natural</option><option value=".7">Lively</option></select></label>
-<label>Pace <div class="row"><input id="pace" type="range" min=".85" max="1.3" value="1.1" step=".05"><output id="paceValue">1.10×</output></div></label>
+<label>Pace <div class="row"><input id="pace" type="range" min=".85" max="1.3" value="1.22" step=".01"><output id="paceValue">1.22×</output></div></label>
 </div>
 <div class="row"><span class="status" id="voiceReadyState">Voice One loading automatically…</span><button id="stop">Stop speaking</button></div>
 <hr>

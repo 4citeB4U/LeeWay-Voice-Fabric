@@ -1,0 +1,10 @@
+{
+  "purpose": "Generic synthesized audition for immediate tuning, not clone reference audio",
+  "engine": "XTTS v2 persistent CPU worker",
+  "referenceSha256": "638c88b332ecc7a21950511871c724f68f3eb566c59157e46493ee79ec55970e",
+  "audioSha256": "a8a2a8f45bb6b3e9330661c1fb30c18d836f16cccc3e7ccd1d86f4b67585b2c4",
+  "text": "Good morning. Let us take a clear look at what matters, make a thoughtful decision, and move forward with confidence.",
+  "generationMs": 34333.14974800305,
+  "audioSeconds": 11.969333333333333,
+  "owner": "Creator-selected Agent Lee Voice One"
+}
