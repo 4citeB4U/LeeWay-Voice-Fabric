@@ -11,12 +11,17 @@ HOW: Keep Voice One prepared in a native WebView; accept speak/stream/stop comma
 */
 import {voiceRegistry} from './voice-registry.js';
 
-const VOICE_ID='agent-lee-voice-one';
+// Fabric retains its global default. Clients choose another registered package
+// explicitly through select(); no APK-side duplicate voice catalog is required.
+let VOICE_ID='agent-lee-voice-one';
 // An Android adapter can avoid a crashing GPU driver without changing Voice One.
 const requestedDevice=new URLSearchParams(globalThis.location?.search||'').get('device');
 const device=requestedDevice==='wasm'?'wasm':undefined;
 const voice=new globalThis.LeeWayBrowserVoice({device,nativeDecoder:globalThis.LeeWayPocketDecoder,onUnavailable:error=>{
   state.ready=false;state.device=null;
+  if(error?.name==='AbortError'){
+    state.lastError=null;setState('VOICE_STOPPED',{ready:false});return;
+  }
   state.lastError=error?.message||'Voice runtime is unavailable.';
   emit('onError',{stage:'runtime',error:state.lastError,voicePackageId:VOICE_ID});
 }});
@@ -32,6 +37,8 @@ const state={
 let activeStream=null;
 let activeStreamId=null;
 let activeTask=null;
+let selection=Promise.resolve();
+let preparation=null;
 
 const native=()=>globalThis.LeeWayPocketNative||null;
 const emit=(method,payload)=>{
@@ -49,29 +56,53 @@ const requireStream=id=>{
   return activeStream;
 };
 
+async function list(){
+  return (await voiceRegistry.list()).map(pkg=>({...pkg,adapterAvailable:pkg.provider==='chatterbox'}));
+}
+async function get(id=VOICE_ID){return voiceRegistry.get(String(id));}
+function select(id){
+  const requested=String(id||'');
+  const operation=selection.catch(()=>{}).then(async()=>{
+    const pkg=await voiceRegistry.get(requested);
+    if(!pkg)throw Error('VOICE_PACKAGE_NOT_FOUND');
+    if(pkg.provider!=='chatterbox')throw Error('VOICE_PROVIDER_NOT_BOUND');
+    if(pkg.status!=='AVAILABLE')throw Error('VOICE_PACKAGE_UNAVAILABLE');
+    if(requested!==VOICE_ID){
+      stop();await voice.dispose();
+      if(preparation)await preparation.catch(()=>{});
+      VOICE_ID=requested;state.voicePackageId=requested;
+      state.ready=false;state.device=null;state.lastError=null;
+    }
+    const result={...pkg,voicePackageId:VOICE_ID,selected:true,ready:state.ready&&voice.ready};
+    emit('onSelection',result);return result;
+  });
+  selection=operation;return operation;
+}
 async function prepare(){
+  await selection;
   if(state.ready&&voice.ready)return {...state};
   state.ready=false;
-  if(state.preparing)return new Promise((resolve,reject)=>{
-    const poll=setInterval(()=>{
-      if(state.ready){clearInterval(poll);resolve({...state});}
-      else if(state.lastError){clearInterval(poll);reject(new Error(state.lastError));}
-    },100);
-  });
+  if(preparation)return preparation;
+  preparation=prepareSelected();
+  try{return await preparation;}finally{preparation=null;}
+}
+async function prepareSelected(){
   state.preparing=true;state.lastError=null;
   try{
     const pkg=await voiceRegistry.get(VOICE_ID);
-    if(!pkg)throw new Error('VOICE_ONE_PACKAGE_NOT_FOUND');
+    if(!pkg)throw new Error('VOICE_PACKAGE_NOT_FOUND');
     const blob=await voiceRegistry.audio(VOICE_ID);
-    if(!blob)throw new Error('VOICE_ONE_REFERENCE_NOT_FOUND');
+    if(!blob)throw new Error('VOICE_REFERENCE_NOT_FOUND');
     // Supply the registry-authorized reference to the initial load so the same
     // speaker is not encoded twice on a constrained phone CPU.
-    const loaded=await voice.load(progress=>setState('PREPARING_VOICE_ONE',{progress}),{referenceBlob:blob});
+    const loaded=await voice.load(progress=>setState('PREPARING_VOICE',{progress}),{referenceBlob:blob});
     state.device=loaded.device;
+    state.decoderBackend=loaded.decoderBackend||null;
+    state.provider=pkg.provider;state.voiceName=pkg.name;
     voice.exaggeration=Number(pkg.exaggeration);
     voice.setPace(pkg.pace);
     state.ready=true;
-    setState('VOICE_ONE_READY',{provider:pkg.provider,pace:pkg.pace,exaggeration:pkg.exaggeration});
+    setState('VOICE_READY',{provider:pkg.provider,pace:pkg.pace,exaggeration:pkg.exaggeration});
     emit('onReady',{...state,provider:pkg.provider});
     return {...state,provider:pkg.provider};
   }catch(error){
@@ -87,7 +118,7 @@ function stop(){
   activeStream=null;activeStreamId=null;activeTask=null;
   state.speaking=false;state.streaming=false;
   voice.stop();
-  setState('VOICE_STOPPED');
+  setState('VOICE_STOPPED',{ready:state.ready&&voice.ready});
   emit('onStopped',{ok:true,voicePackageId:VOICE_ID});
   return {ok:true,stopped:true,voicePackageId:VOICE_ID};
 }
@@ -99,7 +130,7 @@ async function speak(text){
     await prepare();
     stop();
     state.speaking=true;
-    setState('VOICE_ONE_SPEAKING',{chars:clean.length});
+    setState('VOICE_SPEAKING',{chars:clean.length});
     await voice.speak(clean,{onState:message=>setState(message)});
     state.speaking=false;
     emit('onSpeakComplete',{ok:true,chars:clean.length,voicePackageId:VOICE_ID});
@@ -120,7 +151,7 @@ async function streamStart(streamId){
   activeStreamId=id;
   activeStream=new globalThis.LeeWaySpeechStream();
   state.streaming=true;state.speaking=true;
-  setState('VOICE_ONE_STREAM_READY',{streamId:id});
+  setState('VOICE_STREAM_READY',{streamId:id});
   activeTask=voice.speakStream(activeStream,{
     onState:message=>setState(message,{streamId:id}),
     onRendered:text=>emit('onRendered',{streamId:id,text,voicePackageId:VOICE_ID})
@@ -156,8 +187,11 @@ async function streamEnd(streamId){
 
 globalThis.LeeWayAndroidVoice={
   authority:'4citeB4U/LeeWay-Voice-Fabric',
-  voicePackageId:VOICE_ID,
+  get voicePackageId(){return VOICE_ID;},
   status:()=>({...state,ready:state.ready&&voice.ready,activeStreamId}),
+  list,
+  get,
+  select,
   prepare,
   speak,
   streamStart,

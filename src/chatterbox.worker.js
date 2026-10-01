@@ -17,12 +17,16 @@ let activeRequestId=null;
 let activeRequestEpoch=0,nativeSequence=0;
 const nativePending=new Map();
 function nativeRequest(operation,payload){
-  if(operation==='decode'&&activeRequestEpoch!==epoch)return Promise.reject(Object.assign(Error('Speech request interrupted.'),{fatal:true}));
+  if(operation==='decode'&&activeRequestEpoch!==epoch)return Promise.reject(Object.assign(Error('Speech request interrupted.'),{fatal:true,name:'AbortError'}));
   const callId=++nativeSequence;
   return new Promise((resolve,reject)=>{
     nativePending.set(callId,{resolve,reject});
     reply(activeRequestId,'native-decoder',{callId,operation,payload});
   });
+}
+function cancelNativePending(){
+  for(const pending of nativePending.values())pending.reject(Object.assign(Error('Speech was stopped.'),{name:'AbortError',fatal:true}));
+  nativePending.clear();
 }
 const stopping=new InterruptableStoppingCriteria();
 const reply=(id,type,data={})=>self.postMessage({id,type,data});
@@ -121,16 +125,17 @@ self.onmessage=event=>{
   if(message.type==='native-decoder-result'){
     const request=nativePending.get(message.callId);if(!request)return;
     nativePending.delete(message.callId);
-    if(message.error)request.reject(Object.assign(Error(message.error),{fatal:true}));else request.resolve(message.result);
+    if(message.error)request.reject(Object.assign(Error(message.error),{fatal:true,name:message.errorName||'Error'}));else request.resolve(message.result);
     return;
   }
-  if(message.type==='stop'){epoch=message.epoch;stopping.interrupt();return;}
+  if(message.type==='stop'){epoch=message.epoch;stopping.interrupt();cancelNativePending();return;}
+  if(message.type==='dispose')cancelNativePending();
   // Every operation uses one serial work lane. Old queued requests are discarded.
   chain=chain.then(async()=>{
     activeRequestId=message.id;
     activeRequestEpoch=message.epoch??epoch;
     try{const result=await run(message);if(result!==null)reply(message.id,'complete',result)}
-    catch(error){reply(message.id,'error',{message:error.message||'Browser voice failed.',fatal:!!error.fatal})}
+    catch(error){reply(message.id,'error',{message:error.message||'Browser voice failed.',name:error.name,fatal:!!error.fatal})}
     finally{activeRequestId=null;}
   });
 };

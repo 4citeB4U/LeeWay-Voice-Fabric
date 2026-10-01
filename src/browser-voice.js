@@ -33,17 +33,22 @@
         if(this.worker!==worker)return;
         if(message.type==='native-decoder'){
           const data=message.data;
+          if(!this.pending.has(message.id)){worker.postMessage({type:'native-decoder-result',callId:data.callId,error:'Speech was stopped.',errorName:'AbortError'});return;}
           if(!this.nativeDecoder){worker.postMessage({type:'native-decoder-result',callId:data.callId,error:'Native decoder unavailable.'});return;}
           this.nativeDecoder.request(data.operation,data.payload,progress=>this.pending.get(message.id)?.progress?.(progress))
             .then(result=>{if(this.worker===worker)worker.postMessage({type:'native-decoder-result',callId:data.callId,result});})
-            .catch(error=>{if(this.worker===worker)worker.postMessage({type:'native-decoder-result',callId:data.callId,error:error.message});});
+            .catch(error=>{if(this.worker===worker)worker.postMessage({type:'native-decoder-result',callId:data.callId,error:error.message,errorName:error.name});});
           return;
         }
-        const request=this.pending.get(message.id);if(!request)return;
+        const request=this.pending.get(message.id);
+        if(!request){
+          if(message.type==='error'&&message.data?.fatal)this.failWorker(worker,Object.assign(new Error(message.data.message),{name:message.data.name||'Error'}));
+          return;
+        }
         if(message.type==='progress'){if(request.type==='load'){clearTimeout(request.timer);request.timer=setTimeout(request.timeout,15*60_000);}request.progress?.(message.data);return;}
         this.pending.delete(message.id);clearTimeout(request.timer);
         if(message.type==='error'){
-          const error=new Error(message.data.message);request.reject(error);
+          const error=Object.assign(new Error(message.data.message),{name:message.data.name||'Error'});request.reject(error);
           if(request.type==='load'||message.data.fatal)this.failWorker(worker,error);
         }else request.resolve(message.data);
       };
