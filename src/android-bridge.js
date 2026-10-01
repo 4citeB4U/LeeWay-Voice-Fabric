@@ -39,6 +39,33 @@ let activeStreamId=null;
 let activeTask=null;
 let selection=Promise.resolve();
 let preparation=null;
+let selectedProvider='chatterbox';
+let nativeSequence=0;
+const nativePending=new Map();
+const nativeEnglish=()=>globalThis.LeeWayPocketEnglish;
+const available=pkg=>pkg.provider==='chatterbox'||(pkg.provider==='android-tts'&&!!nativeEnglish());
+const engineReady=()=>selectedProvider==='android-tts'?state.ready:voice.ready;
+globalThis.LeeWayEnglishResult=message=>{
+  const request=nativePending.get(message.id);if(!request)return;
+  nativePending.delete(message.id);clearTimeout(request.timer);
+  if(message.error)request.reject(Object.assign(Error(message.error),{name:message.errorName||'Error'}));
+  else request.resolve(message.result);
+};
+function nativeRequest(operation,text){
+  if(!nativeEnglish())return Promise.reject(Error('VOICE_PROVIDER_NOT_BOUND'));
+  const id='speech-'+Date.now()+'-'+(++nativeSequence);
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{nativePending.delete(id);nativeEnglish()?.stop();reject(Error('ANDROID_SPEECH_TIMEOUT'));},operation==='prepare'?30000:120000);
+    nativePending.set(id,{resolve,reject,timer});
+    try{if(operation==='prepare')nativeEnglish().prepare(id);else nativeEnglish().speak(id,text);}
+    catch(error){nativePending.delete(id);clearTimeout(timer);reject(error);}
+  });
+}
+function stopNative(){
+  nativeEnglish()?.stop();
+  for(const pending of nativePending.values()){clearTimeout(pending.timer);pending.reject(new DOMException('Speech was stopped.','AbortError'));}
+  nativePending.clear();
+}
 
 const native=()=>globalThis.LeeWayPocketNative||null;
 const emit=(method,payload)=>{
@@ -57,7 +84,7 @@ const requireStream=id=>{
 };
 
 async function list(){
-  return (await voiceRegistry.list()).map(pkg=>({...pkg,adapterAvailable:pkg.provider==='chatterbox'}));
+  return (await voiceRegistry.list()).map(pkg=>({...pkg,adapterAvailable:available(pkg),preferredForConversation:pkg.provider==='android-tts'&&available(pkg)}));
 }
 async function get(id=VOICE_ID){return voiceRegistry.get(String(id));}
 function select(id){
@@ -65,22 +92,22 @@ function select(id){
   const operation=selection.catch(()=>{}).then(async()=>{
     const pkg=await voiceRegistry.get(requested);
     if(!pkg)throw Error('VOICE_PACKAGE_NOT_FOUND');
-    if(pkg.provider!=='chatterbox')throw Error('VOICE_PROVIDER_NOT_BOUND');
+    if(!available(pkg))throw Error('VOICE_PROVIDER_NOT_BOUND');
     if(pkg.status!=='AVAILABLE')throw Error('VOICE_PACKAGE_UNAVAILABLE');
     if(requested!==VOICE_ID){
       stop();await voice.dispose();
       if(preparation)await preparation.catch(()=>{});
-      VOICE_ID=requested;state.voicePackageId=requested;
+      VOICE_ID=requested;selectedProvider=pkg.provider;state.voicePackageId=requested;
       state.ready=false;state.device=null;state.lastError=null;
     }
-    const result={...pkg,voicePackageId:VOICE_ID,selected:true,ready:state.ready&&voice.ready};
+    const result={...pkg,voicePackageId:VOICE_ID,selected:true,ready:state.ready&&engineReady()};
     emit('onSelection',result);return result;
   });
   selection=operation;return operation;
 }
 async function prepare(){
   await selection;
-  if(state.ready&&voice.ready)return {...state};
+  if(state.ready&&engineReady()){emit('onReady',{...state});return {...state};}
   state.ready=false;
   if(preparation)return preparation;
   preparation=prepareSelected();
@@ -91,6 +118,12 @@ async function prepareSelected(){
   try{
     const pkg=await voiceRegistry.get(VOICE_ID);
     if(!pkg)throw new Error('VOICE_PACKAGE_NOT_FOUND');
+    if(pkg.provider==='android-tts'){
+      const loaded=await nativeRequest('prepare');
+      state.device='android-native';state.decoderBackend=null;state.provider=pkg.provider;
+      state.voiceName=pkg.name;state.actualEngine=loaded.engine;state.actualVoice=loaded.voice;state.locale=loaded.locale;
+      state.ready=true;setState('VOICE_READY',{provider:pkg.provider,...loaded});emit('onReady',{...state});return {...state};
+    }
     const blob=await voiceRegistry.audio(VOICE_ID);
     if(!blob)throw new Error('VOICE_REFERENCE_NOT_FOUND');
     // Supply the registry-authorized reference to the initial load so the same
@@ -117,8 +150,8 @@ function stop(){
   try{activeStream?.fail(new DOMException('Speech was stopped.','AbortError'));}catch{}
   activeStream=null;activeStreamId=null;activeTask=null;
   state.speaking=false;state.streaming=false;
-  voice.stop();
-  setState('VOICE_STOPPED',{ready:state.ready&&voice.ready});
+  voice.stop();stopNative();
+  setState('VOICE_STOPPED',{ready:state.ready&&engineReady()});
   emit('onStopped',{ok:true,voicePackageId:VOICE_ID});
   return {ok:true,stopped:true,voicePackageId:VOICE_ID};
 }
@@ -131,7 +164,8 @@ async function speak(text){
     stop();
     state.speaking=true;
     setState('VOICE_SPEAKING',{chars:clean.length});
-    await voice.speak(clean,{onState:message=>setState(message)});
+    if(selectedProvider==='android-tts')await nativeRequest('speak',clean);
+    else await voice.speak(clean,{onState:message=>setState(message)});
     state.speaking=false;
     emit('onSpeakComplete',{ok:true,chars:clean.length,voicePackageId:VOICE_ID});
     return {ok:true,chars:clean.length,voicePackageId:VOICE_ID};
@@ -147,6 +181,7 @@ async function streamStart(streamId){
   const id=String(streamId||'').trim();
   if(!id)throw new Error('STREAM_ID_REQUIRED');
   await prepare();
+  if(selectedProvider==='android-tts')throw Error('VOICE_PROVIDER_STREAMING_UNSUPPORTED');
   stop();
   activeStreamId=id;
   activeStream=new globalThis.LeeWaySpeechStream();
@@ -188,7 +223,7 @@ async function streamEnd(streamId){
 globalThis.LeeWayAndroidVoice={
   authority:'4citeB4U/LeeWay-Voice-Fabric',
   get voicePackageId(){return VOICE_ID;},
-  status:()=>({...state,ready:state.ready&&voice.ready,activeStreamId}),
+  status:()=>({...state,ready:state.ready&&engineReady(),activeStreamId}),
   list,
   get,
   select,
