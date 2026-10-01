@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LeeWay Voice Fabric</title>
+<style>
+:root{--bg:#030814;--panel:#081426;--panel2:#0d1d33;--line:#1d3957;--ink:#eef7ff;--muted:#91a8bc;--accent:#46cfff;--good:#66e0a3}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -20%,#163b65 0,transparent 45rem),var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}
+main{max-width:1180px;margin:auto;padding:28px 18px 70px}.hero{display:flex;justify-content:space-between;gap:20px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:20px}.hero h1{font-size:clamp(34px,5vw,58px);margin:0}.hero p{max-width:720px;color:var(--muted);margin:8px 0 0}.badge{border:1px solid #285173;border-radius:999px;padding:7px 10px;color:#9fddff;white-space:nowrap}
+.grid{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(420px,1.2fr);gap:16px;margin-top:18px}.card{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:16px;padding:18px}.card h2{margin:0 0 12px;font-size:18px}.muted{color:var(--muted)}
+button,input,select,textarea{font:inherit;border-radius:9px;border:1px solid #2c4b67;background:#091827;color:#fff;padding:10px}button{cursor:pointer}button.primary{background:#0b5271;border-color:#28bce9}button.danger{border-color:#7d3942}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+label{display:grid;gap:6px;margin:10px 0;color:#bcd0e1}input[type="text"],select,textarea{width:100%}textarea{min-height:130px;resize:vertical}.voice-list{display:grid;gap:8px;max-height:440px;overflow:auto}.voice-item{width:100%;text-align:left;padding:12px;border:1px solid #23445f;border-radius:12px;background:#071522;color:#fff}.voice-item.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}.voice-item strong,.voice-item small{display:block}.voice-item small{color:var(--muted);margin-top:3px}.status{color:var(--good);font-weight:700}.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}.controls{display:grid;grid-template-columns:1fr 1fr;gap:12px}.log{white-space:pre-wrap;max-height:220px;overflow:auto;background:#040b14;padding:12px;border-radius:10px;color:#a9bfd0;font:12px ui-monospace,Consolas,monospace}
+hr{border:0;border-top:1px solid var(--line);margin:18px 0}@media(max-width:800px){.grid{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}.split,.controls{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div style="padding:14px;text-align:center;background:#15354e"><a href="studio.html" style="color:#fff;font-weight:bold">Open the full Voice Studio: voice profiles, upload, tuning and WAV download</a></div><main>
+<section class="hero"><div><div class="badge">LEEWAY · CANONICAL VOICE SERVICE</div><h1>Voice Fabric</h1><p>Create, audition, save and reuse voice packages for every LeeWay agent and worker. Reasoning models produce words; Voice Fabric owns how those words are spoken.</p></div><div><span class="status" id="state">Registry loading…</span></div></section>
+
+<div class="grid">
+<section class="card">
+<h2>Agent Lee Voice</h2>
+<p class="muted">Agent Lee uses one canonical identity voice: Voice One. Delivery controls change expression and pace; they are not separate voices.</p>
+<div id="voiceList" class="voice-list"></div>
+<hr>
+<h2>Create voice package</h2>
+<label>Package ID <input id="newId" type="text" placeholder="agent-name-voice-one"></label>
+<label>Display name <input id="newName" type="text" placeholder="Agent Name · Voice One"></label>
+<label>Agent / worker owner <input id="newOwner" type="text" placeholder="Agent Name"></label>
+<label>Reference audio <input id="newReference" type="file" accept="audio/*"></label>
+<div class="split"><label>Delivery <select id="newDelivery"><option value=".15">Very calm</option><option value=".25" selected>Calm</option><option value=".5">Natural</option><option value=".7">Lively</option></select></label>
+<label>Pace <input id="newPace" type="number" min=".85" max="1.3" step=".01" value="1.22"></label></div>
+<div class="row"><button class="primary" id="saveVoice">Save package</button><button id="exportVoice">Export selected</button><button class="danger" id="deleteVoice">Delete local package</button></div>
+</section>
+
+<section class="card">
+<h2 id="selectedTitle">Selected voice</h2>
+<p id="selectedMeta" class="muted"></p>
+<div class="controls">
+<label>Delivery <select id="delivery"><option value=".15">Very calm</option><option value=".25">Calm</option><option value=".5">Natural</option><option value=".7">Lively</option></select></label>
+<label>Pace <div class="row"><input id="pace" type="range" min=".85" max="1.3" value="1.22" step=".01"><output id="paceValue">1.22×</output></div></label>
+</div>
+<div class="row"><span class="status" id="voiceReadyState">Voice One loading automatically…</span><button id="stop">Stop speaking</button></div>
+<hr>
+<label>Speech text<textarea id="text">This voice package is speaking through the LeeWay Voice Fabric.</textarea></label>
+<div class="row"><button class="primary" id="speak">Speak</button><button id="stream">Simulate streamed answer</button></div>
+<hr>
+<h2>Service contract</h2>
+<p class="muted">Other LeeWay applications use the SDK to list packages, select a <code>voicePackageId</code>, then speak or stream text. Every agent/worker creation contract must bind one voice package.</p>
+<pre id="sdkExample" class="log">Loading SDK example…</pre>
+<h2>Local timing / state</h2><pre id="log" class="log"></pre>
+</section>
+</div>
+</main>
+<script src="src/browser-voice.js"></script><script src="src/speech-pipeline.js"></script><script type="module" src="src/lab.js"></script>
+</body></html>

@@ -1,5 +1,7 @@
 # LeeWay Voice Fabric
 
+[Open the live Voice Studio](https://4citeb4u.github.io/LeeWay-Voice-Fabric/) — the homepage includes all profiles and the tuning console.
+
 **Canonical purpose:** one governed voice boundary for the LeeWay ecosystem.
 
 LeeWay Voice Fabric separates **what produces words** from **how Agent Lee speaks them**. LLMs, SLMs, deterministic runtimes, Codex-style read-aloud adapters, browser apps, device runtimes and future providers all call the same voice contract.

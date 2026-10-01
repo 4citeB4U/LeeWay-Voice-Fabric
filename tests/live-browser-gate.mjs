@@ -7,20 +7,20 @@ const failures=[];
 const must=(ok,msg)=>{if(!ok){failures.push(msg);console.error('FAIL',msg)}else console.log('PASS',msg)};
 
 try{
-  // The lab starts model downloads after rendering. Catalog readiness must not
-  // wait for unrelated inference assets to finish downloading.
   await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:120000});
-  must((await page.title())==='LeeWay Voice Fabric','production title');
-  await page.waitForSelector('.voice-item',{timeout:30000});
-  const labels=await page.locator('.voice-item').allTextContents();
-  console.log('VOICE_ITEMS',JSON.stringify(labels));
-  must(labels.some(x=>x.includes('Agent Lee Â· Voice One')),'Agent Lee Voice One rendered');
-  must(labels.length===1,'Creator-facing UI exposes exactly one canonical built-in voice');
-  must(!labels.some(x=>x.includes('Chatterbox Default')),'Provider delivery profiles are hidden from Creator-facing voice list');
-
-  await page.locator('.voice-item',{hasText:'Agent Lee Â· Voice One'}).click();
-  await page.waitForFunction(()=>document.querySelector('#selectedTitle')?.textContent?.includes('Agent Lee Â· Voice One'),null,{timeout:10000});
-  must((await page.locator('#selectedTitle').textContent())?.includes('Agent Lee Â· Voice One'),'UI selects Agent Lee Voice One');
+  must((await page.title())==='LeeWay Voice Studio','root URL opens full studio');
+  await page.waitForSelector('#voiceList button',{timeout:30000});
+  const labels=await page.locator('#voiceList button').allTextContents();
+  must(labels.some(x=>x.includes('Agent Lee · Voice One')),'Agent Lee Voice One rendered');
+  must(labels.filter(x=>x.includes('Kokoro')).length===28,'all 28 Kokoro profiles rendered');
+  await page.getByRole('button',{name:/^Agent Lee · Voice One/}).click();
+  await page.waitForFunction(()=>!document.querySelector('#playPause')?.disabled,null,{timeout:30000});
+  must((await page.locator('#selectedTitle').textContent())?.includes('Agent Lee · Voice One'),'UI selects Agent Lee Voice One');
+  must(await page.locator('#tuningDock').isVisible(),'tuning dock is visible');
+  await page.locator('#playPause').click();
+  await page.waitForFunction(()=>!document.querySelector('#outputPlayer')?.paused,null,{timeout:10000});
+  must(true,'Agent Lee preview starts playback');
+  await page.locator('#playPause').click();
 
   const sdk=await page.evaluate(async base=>{
     const {LeeWayVoiceClient}=await import(base+'src/voice-sdk.js');

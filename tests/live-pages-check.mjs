@@ -1,6 +1,7 @@
 const BASE=process.env.VOICE_FABRIC_URL||'https://4citeb4u.github.io/LeeWay-Voice-Fabric';
 const checks=[
-  ['/', ['LeeWay Voice Fabric','Agent Lee Voice','Voice One loading automatically','Create voice package','Simulate streamed answer']],
+  ['/', ['LeeWay Voice Studio','Voice library','tuningDock','src/studio.js']],
+  ['/lab.html', ['LeeWay Voice Fabric','Simulate streamed answer']],
   ['/src/voice-sdk.js', ['listVoices()','selectVoice(voicePackageId)','streamStart']],
   ['/src/voice-registry.js', ['LeeWayVoiceRegistry','indexedDB','BUILTIN_VOICE_PACKAGES']],
   ['/voices/catalog.v1.json', ['agent-lee-voice-one','chatterbox-default-natural','DEFAULT_FOR_NEW_AGENT_OR_WORKER']]
