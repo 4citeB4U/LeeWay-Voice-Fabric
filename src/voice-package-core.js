@@ -8,6 +8,11 @@ export const BUILTIN_VOICE_PACKAGES=[{
   description:'The reference speaker distributed with the ONNX model. Gender is not declared in the model metadata.',
   license:'MIT model distribution',sourceUrl:'https://huggingface.co/onnx-community/chatterbox-ONNX'
 },{
+  id:'android-installed-english',name:'Android English (installed phone voice)',
+  owner:'Device owner',provider:'android-tts',packageType:'HOST_ADAPTER',
+  locale:'en-US',requiredCapability:'android.englishSpeech',
+  source:'FABRIC_REGISTERED_HOST_ADAPTER',status:'AVAILABLE',pace:1.0
+},{
   id:'chatterbox-default-calm',
   name:'Chatterbox Default · Calm',
   owner:'LeeWay Shared Voice Pool',

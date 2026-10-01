@@ -71,3 +71,20 @@ Source recovery used:
 - `4citeB4U/Leeway-formula-live` — centralized Formula consumer rule.
 
 This repository is a consolidation boundary. Existing applications remain unchanged until adapters are individually migrated and verified.
+
+
+### Android installed English provider
+
+The Fabric registry also contains `android-installed-english` (`android-tts`,
+`HOST_ADAPTER`). Its Android API catalog marks `adapterAvailable` only when the
+host exposes `LeeWayPocketEnglish`; other hosts cannot select this adapter.
+Pocket invokes the same Fabric `list/get/select/prepare/speak/stop` contract for
+this provider and Chatterbox profiles. Preparation reports the actual installed
+engine, voice and English locale. It does not claim a cloned Voice One identity.
+There is no automatic switch between providers after a failure. The Android
+adapter accepts bounded prepared text, supports cancellation, and currently
+rejects streaming. Chatterbox Natural/Calm/Lively and Voice One remain selectable;
+Fabric's global default remains Voice One. Pocket's conversation preference is
+the explicitly registered installed-English adapter. This provider requires an
+installed English TTS engine on that Android host, not a universal platform
+capability.

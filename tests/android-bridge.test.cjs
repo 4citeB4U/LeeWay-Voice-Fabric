@@ -18,7 +18,7 @@ assert.match(js,/streamStart/);
 assert.match(js,/streamChunk/);
 assert.match(js,/streamEnd/);
 assert.match(js,/onRendered/);
-assert.match(js,/VOICE_ONE_STREAM_READY/);
+assert.match(js,/VOICE_STREAM_READY/);
 assert.doesNotMatch(js,/speechSynthesis/);
 assert.doesNotMatch(js,/TextToSpeech/);
 
