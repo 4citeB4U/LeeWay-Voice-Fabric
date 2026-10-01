@@ -79,3 +79,7 @@ The existing iframe speech SDK remains available for streaming applications. Ful
 ## Verification
 
 Run `npm test`, `npm run check`, and `python -m unittest discover -s tests -p 'test_studio_server.py'`. The audio tests measure pitch, duration, spectrum, dynamics and WAV frames; package tests verify recording integrity and reject tampering. Provider tests use mocked responses and real loopback HTTP. Listening acceptance, actual hosted access and target-device qualification are additional checks.
+
+### Profile preview readiness
+
+Every bundled profile has an adjustable sample without model preparation. Agent Lee loads a separate generated preview independently of the clone reference. Kokoro loads bundled generated previews; Chatterbox reference profiles and imported clones load their original recording as an explicitly labeled tuning preview. Hosted profiles can use a provider preview URL; if the account supplies none, generating an audition is required. Editing future text or synthesis settings preserves the current sample. Offline decoding at24kHz avoids audio-device permission dependencies; preview fetches and DSP rendering have bounded deadlines. The original Agent Lee and provider default references are bundled with their existing pinned SHA-256 checks and retain the provenance documented in the catalog.

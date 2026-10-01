@@ -47,3 +47,11 @@ test('unrecognized model voice IDs and clone bytes in a model package are reject
  for(const voiceId of ['',null,'af_unknown','../af_heart','af_heart?token=secret'])assert.throws(()=>normalizeVoicePackage({...meta,provider:'kokoro',voiceId}),/Kokoro voice ID/);
  const p=await encodePortable(KOKORO_VOICE_PACKAGES[0]);await assert.rejects(()=>decodePortable({...p,metadata:{...p.metadata,voiceId:'am_invented'}}),/Kokoro voice ID/);await assert.rejects(()=>decodePortable({...p,audio:{data:'forbidden'}}),/do not carry/);
 });
+
+test('bundled built-in reference files match pinned speaker hashes',async()=>{
+ const {createHash}=require('node:crypto');const {BUILTIN_VOICE_PACKAGES}=await import(coreURL);
+ for(const pkg of BUILTIN_VOICE_PACKAGES.filter(p=>p.provider==='chatterbox')){
+  const file=pkg.id==='agent-lee-voice-one'?'agent-lee-reference.wav':'chatterbox-default-reference.wav';
+  assert.equal(createHash('sha256').update(fs.readFileSync(__dirname+'/../voices/'+file)).digest('hex'),pkg.referenceSha256,pkg.id);
+ }
+});

@@ -46,7 +46,9 @@ export class LeeWayVoiceRegistry{
  async audio(id){
   const pkg=builtin(id);
   if(pkg?.referenceUrl){
-   const r=await fetch(pkg.referenceUrl);if(!r.ok)throw new Error('Built-in voice reference unavailable');
+   // Bundled, hash-verified references make every built-in tunable offline.
+   const path=pkg.id==='agent-lee-voice-one'?'agent-lee-reference.wav':'chatterbox-default-reference.wav';
+   const r=await fetch(new URL('../voices/'+path,import.meta.url),{signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error('Built-in voice reference unavailable');
    const blob=await r.blob();if(blob.size>MAX_AUDIO)throw new Error('Reference is too large');
    if(pkg.referenceSha256&&await audioHash(blob)!==pkg.referenceSha256)throw new Error('Built-in voice reference hash changed');return blob;
   }
