@@ -1,5 +1,5 @@
 export const BUILTIN_VOICE_PACKAGES=[{
-  id:'android-installed-english',name:'Android English · installed phone voice',
+  id:'android-installed-english',name:'Android English (installed phone voice)',
   owner:'Device owner',provider:'android-tts',packageType:'HOST_ADAPTER',
   locale:'en-US',requiredCapability:'android.englishSpeech',
   source:'FABRIC_REGISTERED_HOST_ADAPTER',status:'AVAILABLE',pace:1.0
