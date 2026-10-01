@@ -58,12 +58,12 @@ export const BUILTIN_VOICE_PACKAGES=[{
   status:'AVAILABLE'
 }];
 
-export const KOKORO_VOICE_PACKAGES=[['af_heart','Heart','female'],['af_bella','Bella','female'],['af_nicole','Nicole','female'],['am_fenrir','Fenrir','male'],['am_michael','Michael','male'],['am_puck','Puck','male']].map(([voiceId,name,gender])=>({
+export const KOKORO_VOICE_PACKAGES=[["af_alloy","Alloy","female"],["af_aoede","Aoede","female"],["af_bella","Bella","female"],["af_heart","Heart","female"],["af_jessica","Jessica","female"],["af_kore","Kore","female"],["af_nicole","Nicole","female"],["af_nova","Nova","female"],["af_river","River","female"],["af_sarah","Sarah","female"],["af_sky","Sky","female"],["am_adam","Adam","male"],["am_echo","Echo","male"],["am_eric","Eric","male"],["am_fenrir","Fenrir","male"],["am_liam","Liam","male"],["am_michael","Michael","male"],["am_onyx","Onyx","male"],["am_puck","Puck","male"],["am_santa","Santa","male"],["bf_alice","Alice","female"],["bf_emma","Emma","female"],["bf_isabella","Isabella","female"],["bf_lily","Lily","female"],["bm_daniel","Daniel","male"],["bm_fable","Fable","male"],["bm_george","George","male"],["bm_lewis","Lewis","male"]].map(([voiceId,name,gender])=>({
   id:'kokoro-'+voiceId,voiceId,name:name+' · Kokoro',gender,owner:'hexgrad / Kokoro',provider:'kokoro',
   speakerId:'kokoro-'+voiceId,packageType:'MODEL_VOICE',source:'BUILTIN_LOCAL',pace:1,exaggeration:.5,
   referenceUrl:null,referenceSha256:null,previewUrl:'/api/local/preview/'+voiceId,license:'Apache-2.0',
   sourceUrl:'https://huggingface.co/hexgrad/Kokoro-82M',status:'AVAILABLE',
-  description:'Distinct local Kokoro model voice. Not a Chatterbox preset or a pitch-shifted clone.'
+  description:`${voiceId.startsWith('b')?'British':'American'} English - Distinct local Kokoro model voice. Not a pitch-shifted clone.`
 }));
 BUILTIN_VOICE_PACKAGES.push(...KOKORO_VOICE_PACKAGES);
 

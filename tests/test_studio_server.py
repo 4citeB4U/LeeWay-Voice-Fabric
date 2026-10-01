@@ -130,14 +130,14 @@ class StudioTests(unittest.TestCase):
             self.assertNotIn("test-only-secret", str(caught.exception))
 
 
-    def test_local_catalog_has_six_distinct_speakers_and_no_reference_requirement(self):
+    def test_local_catalog_has_28_distinct_speakers_and_no_reference_requirement(self):
         with patch.object(studio, "local_request") as upstream:
             status, body, _ = self.request("GET", "/api/local/voices")
             self.assertEqual(status, 200)
             voices = body["voices"]
-            self.assertEqual(len({v["voiceId"] for v in voices}), 6)
-            self.assertEqual(sum(v["gender"] == "female" for v in voices), 3)
-            self.assertEqual(sum(v["gender"] == "male" for v in voices), 3)
+            self.assertEqual(len({v["voiceId"] for v in voices}), 28)
+            self.assertEqual(sum(v["gender"] == "female" for v in voices), 15)
+            self.assertEqual(sum(v["gender"] == "male" for v in voices), 13)
             self.assertTrue(all(v["provider"] == "kokoro" and v["referenceUrl"] is None for v in voices))
             upstream.assert_not_called()
 

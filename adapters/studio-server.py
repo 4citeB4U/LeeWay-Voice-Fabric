@@ -22,8 +22,7 @@ from urllib.request import Request, urlopen
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from local_clone import CloneWorker
 
-LOCAL_VOICES = [('af_heart','Heart','female'),('af_bella','Bella','female'),('af_nicole','Nicole','female'),
-                ('am_fenrir','Fenrir','male'),('am_michael','Michael','male'),('am_puck','Puck','male')]
+LOCAL_VOICES = [('af_alloy', 'Alloy', 'female'), ('af_aoede', 'Aoede', 'female'), ('af_bella', 'Bella', 'female'), ('af_heart', 'Heart', 'female'), ('af_jessica', 'Jessica', 'female'), ('af_kore', 'Kore', 'female'), ('af_nicole', 'Nicole', 'female'), ('af_nova', 'Nova', 'female'), ('af_river', 'River', 'female'), ('af_sarah', 'Sarah', 'female'), ('af_sky', 'Sky', 'female'), ('am_adam', 'Adam', 'male'), ('am_echo', 'Echo', 'male'), ('am_eric', 'Eric', 'male'), ('am_fenrir', 'Fenrir', 'male'), ('am_liam', 'Liam', 'male'), ('am_michael', 'Michael', 'male'), ('am_onyx', 'Onyx', 'male'), ('am_puck', 'Puck', 'male'), ('am_santa', 'Santa', 'male'), ('bf_alice', 'Alice', 'female'), ('bf_emma', 'Emma', 'female'), ('bf_isabella', 'Isabella', 'female'), ('bf_lily', 'Lily', 'female'), ('bm_daniel', 'Daniel', 'male'), ('bm_fable', 'Fable', 'male'), ('bm_george', 'George', 'male'), ('bm_lewis', 'Lewis', 'male')]
 KOKORO_URL = os.environ.get('LEEWAY_KOKORO_URL', 'http://127.0.0.1:8878').rstrip('/')
 XTTS_URL = os.environ.get('LEEWAY_XTTS_URL', 'http://127.0.0.1:8092').rstrip('/')
 CLONE = None

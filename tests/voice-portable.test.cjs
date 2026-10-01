@@ -29,10 +29,10 @@ test('builtins distinguish two reference speakers from shared delivery presets',
 });
 
 
-test('Kokoro catalog contains six distinct model voices split three female and three male',async()=>{
+test('Kokoro catalog contains 28 distinct English model voices split15female and13male',async()=>{
  const {BUILTIN_VOICE_PACKAGES}=await import(coreURL),voices=BUILTIN_VOICE_PACKAGES.filter(p=>p.provider==='kokoro');
- assert.equal(voices.length,6);assert.equal(new Set(voices.map(p=>p.voiceId)).size,6);
- assert.equal(voices.filter(p=>p.gender==='female').length,3);assert.equal(voices.filter(p=>p.gender==='male').length,3);
+ assert.equal(voices.length,28);assert.equal(new Set(voices.map(p=>p.voiceId)).size,28);
+ assert.equal(voices.filter(p=>p.gender==='female').length,15);assert.equal(voices.filter(p=>p.gender==='male').length,13);
  for(const p of voices){assert.equal(p.packageType,'MODEL_VOICE');assert.equal(p.referenceUrl,null);assert.equal(p.referenceSha256,null);assert.equal(p.license,'Apache-2.0');}
 });
 

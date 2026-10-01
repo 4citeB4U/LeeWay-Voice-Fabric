@@ -11,7 +11,7 @@ const here=path.dirname(fileURLToPath(import.meta.url));
 const modelDir=path.join(here,'models','kokoro');
 const previewDir=path.resolve(here,'../../voices/kokoro-previews');
 const port=Number(process.env.LEEWAY_KOKORO_PORT||8878);
-const voices=['af_heart','af_bella','af_nicole','am_fenrir','am_michael','am_puck'];
+const voices=["af_alloy","af_aoede","af_bella","af_heart","af_jessica","af_kore","af_nicole","af_nova","af_river","af_sarah","af_sky","am_adam","am_echo","am_eric","am_fenrir","am_liam","am_michael","am_onyx","am_puck","am_santa","bf_alice","bf_emma","bf_isabella","bf_lily","bm_daniel","bm_fable","bm_george","bm_lewis"];
 const modelHash='fbae9257e1e05ffc727e951ef9b9c98418e6d79f1c9b6b13bd59f5c9028a1478';
 env.allowRemoteModels=false;
 env.cacheDir=path.join(here,'models','cache');
@@ -46,7 +46,7 @@ async function buildPreviews(){
 if(isMainThread){
  engine=new Worker(fileURLToPath(import.meta.url));
  engine.on('message',data=>{
-  if(data.ready){state='ready';message='Six local Kokoro voices ready.';console.log(message);if(process.env.LEEWAY_BUILD_PREVIEWS==='1')buildPreviews().catch(console.error);return;}
+  if(data.ready){state='ready';message='28 local Kokoro voices ready.';console.log(message);if(process.env.LEEWAY_BUILD_PREVIEWS==='1')buildPreviews().catch(console.error);return;}
   if(data.failed){state='failed';message='Local model could not load. Check the adapter log.';console.error(data.error);return;}
   const job=pending.get(data.id);if(!job)return;pending.delete(data.id);clearTimeout(job.timer);data.error?job.reject(new Error(data.error)):job.resolve({wav:Buffer.from(data.wav),metrics:data.metrics});
  });

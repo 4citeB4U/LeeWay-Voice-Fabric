@@ -17,7 +17,7 @@ LeeWay Voice Fabric separates **what produces words** from **how Agent Lee speak
 
 ## Voice Studio
 
-Open `studio.html` for six distinct Kokoro speakers (three male, three female), Agent Lee's reference clone, optional Resemble account discovery, rotary acoustic tuning, portable profile import/export and rendered WAV download. Start `python adapters/start-studio.py --setup` (Python 3.10+ and Node.js), then open `http://127.0.0.1:8877/studio.html`. Subsequent launches omit `--setup`. See [local runtime setup and provider boundaries](docs/local-studio-runtime.md) and [the studio integration guide](docs/voice-studio.md). A static server supports the optional Chatterbox browser engine; local Kokoro/XTTS and hosted Resemble require their configured adapters. The browser SDK's streaming contract and the studio's batch synthesis are separate implemented paths.
+Open `studio.html` for 28 distinct English Kokoro speakers (13 male,15 female), Agent Lee's reference clone, optional Resemble account discovery, rotary acoustic tuning, portable profile import/export and rendered WAV download. Start `python adapters/start-studio.py --setup` (Python 3.10+ and Node.js), then open `http://127.0.0.1:8877/studio.html`. Subsequent launches omit `--setup`. See [local runtime setup and provider boundaries](docs/local-studio-runtime.md) and [the studio integration guide](docs/voice-studio.md). A static server supports the optional Chatterbox browser engine; local Kokoro/XTTS and hosted Resemble require their configured adapters. The browser SDK's streaming contract and the studio's batch synthesis are separate implemented paths.
 
 ## Public browser surface
 
