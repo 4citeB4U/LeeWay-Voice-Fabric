@@ -68,7 +68,7 @@
       return this.audio;
     }
     // Preparation can run before a gesture; actual speech still follows user action.
-    async load(onProgress=()=>{}){
+    async load(onProgress=()=>{},{referenceBlob}={}){
       if(this.ready)return {device:this.device};if(this.loading)return this.loading;
       const lifecycle=this.lifecycle;
       this.loading=(async()=>{
@@ -87,8 +87,12 @@
         onProgress({status:'initiate',file:'Chatterbox voice',total:LeeWayBrowserVoice.download.webgpuBytes});
         const result=await this.request('load',{device:this.options.device},onProgress);if(lifecycle!==this.lifecycle)throw aborted();this.device=result.device;
         onProgress({message:"Preparing Agent Lee's voice reference..."});
-        const response=await fetch(DEFAULT_REFERENCE);if(!response.ok)throw new Error('Default voice reference could not be downloaded.');
-        const blob=await response.blob();if(lifecycle!==this.lifecycle)throw aborted();
+        let blob=referenceBlob;
+        if(!blob){
+          const response=await fetch(DEFAULT_REFERENCE);if(!response.ok)throw new Error('Default voice reference could not be downloaded.');
+          blob=await response.blob();
+        }
+        if(lifecycle!==this.lifecycle)throw aborted();
         await this.setReference(blob);if(lifecycle!==this.lifecycle)throw aborted();this.ready=true;
         onProgress({status:'ready',device:this.device});return result;
       })();

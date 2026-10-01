@@ -62,11 +62,12 @@ async function prepare(){
   try{
     const pkg=await voiceRegistry.get(VOICE_ID);
     if(!pkg)throw new Error('VOICE_ONE_PACKAGE_NOT_FOUND');
-    const loaded=await voice.load(progress=>setState('PREPARING_VOICE_ONE',{progress}));
-    state.device=loaded.device;
     const blob=await voiceRegistry.audio(VOICE_ID);
     if(!blob)throw new Error('VOICE_ONE_REFERENCE_NOT_FOUND');
-    await voice.setReference(blob);
+    // Supply the registry-authorized reference to the initial load so the same
+    // speaker is not encoded twice on a constrained phone CPU.
+    const loaded=await voice.load(progress=>setState('PREPARING_VOICE_ONE',{progress}),{referenceBlob:blob});
+    state.device=loaded.device;
     voice.exaggeration=Number(pkg.exaggeration);
     voice.setPace(pkg.pace);
     state.ready=true;
