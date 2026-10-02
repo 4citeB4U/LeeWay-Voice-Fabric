@@ -47,3 +47,13 @@ test('CPU reads only one component before creating it, releases earlier sessions
  await assert.rejects(createCpuSessions({ort,config:{},cacheStorage,components}),/native failure/);
  assert.deepEqual(events,['read:one.onnx','read:one.onnx_data','create','read:two.onnx','read:two.onnx_data','create','release']);
 });
+test('Android native mode excludes speech encoder and conditional decoder from WebView cache',async()=>{
+ const {stageVoiceAssets,BASE}=await cacheModule,c=storage();const fetched=[];
+ const assets=[
+  {file:'onnx/speech_encoder.onnx',bytes:1},{file:'onnx/speech_encoder.onnx_data',bytes:1},
+  {file:'onnx/conditional_decoder.onnx',bytes:1},{file:'onnx/conditional_decoder.onnx_data',bytes:1},
+  {file:'onnx/language_model_q4.onnx',bytes:1}
+ ];
+ await stageVoiceAssets({cacheStorage:c,assets,nativeDecoder:true,fetcher:async url=>{fetched.push(url);return new Response(new Uint8Array([1]));}});
+ assert.deepEqual(fetched,[BASE+'onnx/language_model_q4.onnx']);
+});
