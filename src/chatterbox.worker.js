@@ -3,7 +3,7 @@
 import {ChatterboxModel,AutoConfig,AutoProcessor,Tensor,InterruptableStoppingCriteria,env} from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.0/+esm';
 import {createCpuSessions} from './voice-cpu-sessions.js';
 import {BASE,CACHE,COMPONENTS} from './voice-model-cache.js';
-import {tensorToWire,waveformFromWire,waveformStats} from './native-decoder-client.js';
+import {tensorToWire,audioTensorToWire,tensorMapFromWire,waveformFromWire,waveformStats} from './native-decoder-client.js';
 
 const turbo=new URL(self.location.href).searchParams.get('model')==='turbo';
 const MODEL=turbo?'ResembleAI/chatterbox-turbo-ONNX':'onnx-community/chatterbox-ONNX';
@@ -54,22 +54,37 @@ async function load(id,requested,useNativeDecoder=false){
     if(!generation?.ok)throw Error('Canonical voice generation config is not cached.');
     const generation_config=await generation.json();
     if(useNativeDecoder)await nativeRequest('prepare');
-    const components=useNativeDecoder?COMPONENTS.filter(c=>c.key!=='conditional_decoder'):COMPONENTS;
+    const nativeKeys=new Set(['speech_encoder','conditional_decoder']);
+    const components=useNativeDecoder?COMPONENTS.filter(c=>!nativeKeys.has(c.key)):COMPONENTS;
     const sessions=await createCpuSessions({ort,config,components,onProgress:data=>progress(id,data)});
-    if(useNativeDecoder)sessions.conditional_decoder={
-      inputNames:['speech_tokens','speaker_embeddings','speaker_features'],outputNames:['waveform'],
-      config:{dtype:'fp32',device:'native-cpu'},release:async()=>{},
-      async run(feeds){
-        progress(activeRequestId,{message:'Rendering canonical voice with native CPU decoder'});
-        const result=await nativeRequest('decode',Object.fromEntries(this.inputNames.map(name=>[name,tensorToWire(feeds[name])])));
-        return {waveform:waveformFromWire(result,ort)};
-      }
-    };
+    if(useNativeDecoder){
+      sessions.speech_encoder={
+        inputNames:['audio_values'],outputNames:['audio_features','audio_tokens','speaker_embeddings','speaker_features'],
+        config:{dtype:'fp32',device:'native-cpu'},release:async()=>{},
+        async run(feeds){
+          progress(activeRequestId,{message:'Encoding Agent Lee voice reference with native CPU'});
+          const result=await nativeRequest('encode',{audio_values:audioTensorToWire(feeds.audio_values)});
+          return tensorMapFromWire(result,ort);
+        }
+      };
+      sessions.conditional_decoder={
+        inputNames:['speech_tokens','speaker_embeddings','speaker_features'],outputNames:['waveform'],
+        config:{dtype:'fp32',device:'native-cpu'},release:async()=>{},
+        async run(feeds){
+          progress(activeRequestId,{message:'Rendering canonical voice with native CPU decoder'});
+          const result=await nativeRequest('decode',Object.fromEntries(this.inputNames.map(name=>[name,tensorToWire(feeds[name])])));
+          return {waveform:waveformFromWire(result,ort)};
+        }
+      };
+    }
     try{
       model=new ChatterboxModel(config,sessions,{generation_config});
       if(!model.can_generate)throw Error('Canonical voice model cannot generate.');
       processor=await AutoProcessor.from_pretrained(MODEL,{revision:REVISION,progress_callback:data=>progress(id,data)});
-      return {device,model:MODEL,revision:REVISION,dtype,decoderBackend:useNativeDecoder?'onnxruntime-android-cpu':'wasm',loader:'SEQUENTIAL_CACHED_CPU',exaggerationSupported:model.sessions.embed_tokens.inputNames.includes('exaggeration')};
+      return {device,model:MODEL,revision:REVISION,dtype,
+        encoderBackend:useNativeDecoder?'onnxruntime-android-cpu':'wasm',
+        decoderBackend:useNativeDecoder?'onnxruntime-android-cpu':'wasm',
+        loader:'SEQUENTIAL_CACHED_CPU',exaggerationSupported:model.sessions.embed_tokens.inputNames.includes('exaggeration')};
     }catch(error){
       model=null;processor=null;
       for(const session of Object.values(sessions))await session.release().catch(()=>{});
