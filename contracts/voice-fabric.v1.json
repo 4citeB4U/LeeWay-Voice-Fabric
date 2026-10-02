@@ -1,7 +1,7 @@
 {
-  "schema": "leeway-voice-fabric/v2",
+  "schema": "leeway-voice-fabric/v2.1",
   "authority": "4citeB4U/LeeWay-Voice-Fabric",
-  "purpose": "canonical multi-agent voice package registry and speech service",
+  "purpose": "canonical multi-agent voice package registry and persona-aware speech service",
   "defaultVoice": "agent-lee-voice-one",
   "transport": [
     "iframe-postMessage",
@@ -18,7 +18,7 @@
       "exaggeration"
     ],
     "reference": "versioned URL or Voice Fabric origin IndexedDB blob",
-    "bindingRule": "Every LeeWay agent or worker must have an explicit voicePackageId. Agent Lee Voice One is not the universal default for other agents."
+    "bindingRule": "Every LeeWay agent or worker must carry an explicit personaFamily, personaArchetypeId and voicePackageId. Persona is resolved by Runtime Fabric; Voice Fabric renders verified acoustic output."
   },
   "commands": {
     "ping": {},
@@ -64,6 +64,28 @@
     "bounded queue",
     "ordered text",
     "stale audio suppressed after interruption",
-    "voice ownership is explicit per agent or worker"
-  ]
+    "voice ownership is explicit per agent or worker",
+    "persona family is resolved before speech dispatch",
+    "persona archetype metadata survives reasoning-to-voice handoff",
+    "acoustic voice package does not become persona authority",
+    "persona adapter/model does not become voice package authority",
+    "no demographic stereotype may be treated as factual behavior law"
+  ],
+  "personaBinding": {
+    "authority": "4citeB4U/Leeway-Runtime-Fabric",
+    "family": "AGENT_LEE_CONSTITUTIONAL",
+    "requiredFields": [
+      "agentId",
+      "personaFamily",
+      "personaArchetypeId",
+      "voicePackageId"
+    ],
+    "archetypes": [
+      "ELDER_MALE",
+      "ELDER_FEMALE",
+      "YOUNG_MALE",
+      "YOUNG_FEMALE"
+    ],
+    "rule": "Persona controls linguistic delivery and pragmatic register. Voice package controls acoustic speaker identity. Neither may invent the other's state."
+  }
 }
