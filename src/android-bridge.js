@@ -124,7 +124,7 @@ async function prepareSelected(){
     if(!pkg)throw new Error('VOICE_PACKAGE_NOT_FOUND');
     if(pkg.provider==='android-tts'){
       const loaded=await nativeRequest('prepare');
-      state.device='android-native';state.decoderBackend=null;state.provider=pkg.provider;
+      state.device='android-native';state.encoderBackend=null;state.decoderBackend=null;state.provider=pkg.provider;
       state.voiceName=pkg.name;state.actualEngine=loaded.engine;state.actualVoice=loaded.voice;state.locale=loaded.locale;
       state.ready=true;setState('VOICE_READY',{provider:pkg.provider,...loaded});emit('onReady',{...state});return {...state};
     }
@@ -134,6 +134,7 @@ async function prepareSelected(){
     // speaker is not encoded twice on a constrained phone CPU.
     const loaded=await voice.load(progress=>setState('PREPARING_VOICE',{progress}),{referenceBlob:blob});
     state.device=loaded.device;
+    state.encoderBackend=loaded.encoderBackend||null;
     state.decoderBackend=loaded.decoderBackend||null;
     state.provider=pkg.provider;state.voiceName=pkg.name;
     voice.exaggeration=Number(pkg.exaggeration);
