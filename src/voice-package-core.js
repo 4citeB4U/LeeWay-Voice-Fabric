@@ -114,8 +114,26 @@ export function normalizeVoicePackage(input={}){
   return {id,name:name.slice(0,120),owner:owner.slice(0,120),provider,packageType:String(input.packageType||'CLONED_REFERENCE'),pace,exaggeration,source:String(input.source||'USER_LOCAL'),status:String(input.status||'AVAILABLE'),createdAt:input.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString(),referenceUrl:safeUrl(input.referenceUrl),referenceSha256:input.referenceSha256||null,speakerId:String(input.speakerId||id),gender:String(input.gender||'unspecified'),description:String(input.description||'').slice(0,1000),license:String(input.license||'User-provided reference'),sourceUrl:safeUrl(input.sourceUrl),previewUrl:provider==='kokoro'?'/api/local/preview/'+voiceId:safeUrl(input.previewUrl),voiceId,voiceUuid,tuning,synthesis:normalizeSynthesis(input.synthesis||{exaggeration})};
 }
 
-export function agentVoiceBinding({agentId,voicePackageId}={}){
-  if(!String(agentId||'').trim())throw new Error('agentId required.');
-  if(!String(voicePackageId||'').trim())throw new Error('Every LeeWay agent/worker requires a voicePackageId.');
-  return {schema:'leeway-agent-voice-binding/v1',agentId:String(agentId),voicePackageId:String(voicePackageId)};
+export function agentVoiceBinding({
+  agentId,
+  personaFamily='AGENT_LEE_CONSTITUTIONAL',
+  personaArchetypeId='ELDER_MALE',
+  voicePackageId
+}={}){
+  const id=String(agentId||'').trim();
+  const family=String(personaFamily||'').trim();
+  const archetype=String(personaArchetypeId||'').trim().toUpperCase();
+  const voice=String(voicePackageId||'').trim();
+  if(!id)throw new Error('agentId required.');
+  if(!family)throw new Error('personaFamily required.');
+  if(!['ELDER_MALE','ELDER_FEMALE','YOUNG_MALE','YOUNG_FEMALE'].includes(archetype))
+    throw new Error('Unknown Agent Lee persona archetype.');
+  if(!voice)throw new Error('Every LeeWay agent/worker requires a voicePackageId.');
+  return {
+    schema:'leeway-agent-voice-binding/v1.1',
+    agentId:id,
+    personaFamily:family,
+    personaArchetypeId:archetype,
+    voicePackageId:voice
+  };
 }
