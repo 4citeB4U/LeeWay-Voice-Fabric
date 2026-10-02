@@ -4,9 +4,10 @@
   const REVISION='3cab09af388d3f02bba43443fce88c1f4525ac43';
   const sourceURL=typeof document!=='undefined'?document.currentScript?.src:null;
   const DEFAULT_REFERENCE='https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav';
-  const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v=20260930-sequential1',sourceURL).href:'/src/chatterbox.worker.js?v=20260930-sequential1';
-  const CACHE_MODULE_URL=sourceURL?new URL('voice-model-cache.js',sourceURL).href:'/src/voice-model-cache.js';
-  const NATIVE_MODULE_URL=sourceURL?new URL('native-decoder-client.js',sourceURL).href:'/src/native-decoder-client.js';
+  const FABRIC_BUILD='20261002-native-encoder1';
+  const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v='+FABRIC_BUILD,sourceURL).href:'/src/chatterbox.worker.js?v='+FABRIC_BUILD;
+  const CACHE_MODULE_URL=sourceURL?new URL('voice-model-cache.js?v='+FABRIC_BUILD,sourceURL).href:'/src/voice-model-cache.js?v='+FABRIC_BUILD;
+  const NATIVE_MODULE_URL=sourceURL?new URL('native-decoder-client.js?v='+FABRIC_BUILD,sourceURL).href:'/src/native-decoder-client.js?v='+FABRIC_BUILD;
   function aborted(){return new DOMException('Speech was stopped.','AbortError');}
   // Keep syntactic context whenever possible, without exceeding the generation budget.
   function segmentCut(text,{closed=false,flush=false}={}){
