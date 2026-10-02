@@ -10,7 +10,7 @@ for(const [requested,turbo,native=false] of [['wasm',false],['webgpu',false],['w
   const context=vm.createContext({env,URL,ChatterboxModel,BASE:'https://example.test/',CACHE:'test',
    AutoConfig:{from_pretrained:async()=>({})},AutoProcessor:{from_pretrained:async()=>({})},
    InterruptableStoppingCriteria:class{},testOrt:async()=>ort,
-   COMPONENTS:[{key:'embed_tokens'},{key:'conditional_decoder'}],
+   COMPONENTS:[{key:'embed_tokens'},{key:'speech_encoder'},{key:'conditional_decoder'}],
    createCpuSessions:async options=>{components=options.components;sequential++;return sessions;},
    fetch:async()=>({ok:true,json:async()=>({})}),caches:{open:async()=>({match:async()=>({ok:true,json:async()=>({})})})},
    self:{location:{href:'https://example.test/worker.js'+(turbo?'?model=turbo':'')},navigator:{gpu:{requestAdapter:async()=>({features:new Set(['shader-f16'])})}},postMessage(){},addEventListener(){}}});
@@ -23,6 +23,7 @@ for(const [requested,turbo,native=false] of [['wasm',false],['webgpu',false],['w
    assert.match(ort.env.wasm.wasmPaths.mjs,/\/ort-wasm-simd-threaded\.mjs$/);
    assert.match(ort.env.wasm.wasmPaths.wasm,/\/ort-wasm-simd-threaded\.wasm$/);
    assert.equal(components.some(c=>c.key==='conditional_decoder'),!native);
+   assert.equal(components.some(c=>c.key==='speech_encoder'),!native);
   }else{
    assert.equal(sequential,0);assert.equal(original,1);assert.equal(ort.env.wasm.wasmPaths,undefined);
    assert.equal(selected.dtype.language_model,requested==='webgpu'?'q4f16':'q4');
