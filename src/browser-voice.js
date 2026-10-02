@@ -138,7 +138,7 @@
           // Termination releases inaccessible partial sessions before a new backend.
           this.resetWorker(error);
           if(!error.retryableGPU||initialDevice==='wasm')throw error;
-          onProgress({status:'warning',message:'WebGPU initialization failed. Retrying once on CPU with the Android native decoder when available.'});
+          onProgress({status:'warning',message:'WebGPU initialization failed. Retrying once on CPU with the Android native decoder when available; a different model variant may need downloading.'});
           await prepareCpuPath();
           if(lifecycle!==this.lifecycle)throw aborted();
           result=await this.request('load',{device:'wasm',nativeDecoder:!!this.nativeDecoder},onProgress);
