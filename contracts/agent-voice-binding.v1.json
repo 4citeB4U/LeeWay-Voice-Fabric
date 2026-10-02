@@ -1,23 +1,47 @@
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "1.1.0",
   "id": "LEEWAY_AGENT_VOICE_BINDING_V1",
   "authority": "4citeB4U/LeeWay-Voice-Fabric",
-  "rule": "Every created LeeWay agent or worker must receive a voice package binding.",
+  "rule": "Every created LeeWay agent or worker must receive both a constitutional persona binding and an acoustic voice package binding.",
   "required": [
     "agentId",
+    "personaFamily",
+    "personaArchetypeId",
     "voicePackageId"
   ],
   "example": {
     "agentId": "agent-lee",
+    "personaFamily": "AGENT_LEE_CONSTITUTIONAL",
+    "personaArchetypeId": "ELDER_MALE",
     "voicePackageId": "agent-lee-voice-one"
   },
   "creationFlow": [
     "Agent/worker identity created",
+    "Agent Lee Persona Constitution loaded",
+    "Creator/policy selects personaArchetypeId",
     "Voice Fabric catalog queried",
-    "Creator/policy selects voicePackageId",
+    "Creator/policy selects a verified voicePackageId",
     "Binding persisted with agent configuration",
-    "Runtime resolves voicePackageId through Voice Fabric adapter"
+    "Runtime resolves persona through Runtime Fabric and acoustic output through Voice Fabric adapter",
+    "Speech receipt records agentId, personaFamily, personaArchetypeId and voicePackageId"
   ],
-  "noImplicitAgentLeeVoice": true,
-  "missingBindingState": "BLOCKED_VOICE_PACKAGE_REQUIRED"
+  "noImplicitAgentLeeVoice": false,
+  "missingBindingState": "BLOCKED_PERSONA_OR_VOICE_BINDING_REQUIRED",
+  "personaPolicy": {
+    "defaultFamily": "AGENT_LEE_CONSTITUTIONAL",
+    "defaultArchetype": "ELDER_MALE",
+    "inheritanceRule": "All LeeWay agents/workers inherit the Agent Lee constitutional persona family unless Creator policy explicitly overrides.",
+    "archetypeRule": "Archetype controls delivery register/cadence only; it does not replace agent mission, identity, authority or permissions.",
+    "verifiedArchetypes": [
+      "ELDER_MALE",
+      "ELDER_FEMALE",
+      "YOUNG_MALE",
+      "YOUNG_FEMALE"
+    ]
+  },
+  "voicePolicy": {
+    "agentLeeDefaultVoice": "agent-lee-voice-one",
+    "noFabricatedVoicePackages": true,
+    "rule": "A persona archetype may be active even when a dedicated matching acoustic package has not yet been created. Never claim a new speaker identity without a verified voice package."
+  }
 }
