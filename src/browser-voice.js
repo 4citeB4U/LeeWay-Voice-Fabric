@@ -110,37 +110,38 @@
       const operation=(async()=>{
         // Prepare decoding without requesting microphone or audible playback.
         await this.audioContext();if(lifecycle!==this.lifecycle)throw aborted();
-        // The proven mobile CPU path stages on the page before native sessions
-        // can block the worker's fetch readers. Custom/GPU/Turbo loaders stay unchanged.
-        if(this.options.device==='wasm'&&!this.options.workerURL){
+        // Keep WebGPU automatic on capable hosts, but when an Android native
+        // decoder exists and WebGPU is unavailable, enter the proven CPU path
+        // explicitly so the worker and native decoder agree on the backend.
+        const initialDevice=this.options.device||(!root.navigator?.gpu&&this.options.nativeDecoder?'wasm':undefined);
+        const prepareCpuPath=async()=>{
+          if(this.options.workerURL)return;
           if(this.options.nativeDecoder&&!this.nativeDecoder){
             const {createNativeDecoderClient}=await import(NATIVE_MODULE_URL);
             this.nativeDecoder=createNativeDecoderClient(this.options.nativeDecoder);
+            if(!this.nativeDecoder)throw new Error('Native decoder binding is unavailable.');
           }
           const {stageVoiceAssets}=await import(CACHE_MODULE_URL);
           if(lifecycle!==this.lifecycle)throw aborted();
-          const controller=this.prefetchController=new AbortController();
-          try{await stageVoiceAssets({signal:controller.signal,onProgress,nativeDecoder:!!this.nativeDecoder});}
-          finally{if(this.prefetchController===controller)this.prefetchController=null;}
+          const cpuController=this.prefetchController=new AbortController();
+          try{await stageVoiceAssets({signal:cpuController.signal,onProgress,nativeDecoder:!!this.nativeDecoder});}
+          finally{if(this.prefetchController===cpuController)this.prefetchController=null;}
           if(lifecycle!==this.lifecycle)throw aborted();
-        }
+        };
+        if(initialDevice==='wasm')await prepareCpuPath();
         onProgress({status:'initiate',file:'Chatterbox voice',total:LeeWayBrowserVoice.download.webgpuBytes});
         let result;
-        try{result=await this.request('load',{device:this.options.device,nativeDecoder:!!this.nativeDecoder},onProgress);}
+        try{result=await this.request('load',{device:initialDevice,nativeDecoder:!!this.nativeDecoder},onProgress);}
         catch(error){
           if(lifecycle!==this.lifecycle)throw aborted();
           // Only an explicitly classified GPU compilation/device error retries.
           // Termination releases inaccessible partial sessions before a new backend.
           this.resetWorker(error);
-          if(!error.retryableGPU||this.options.device==='wasm')throw error;
-          onProgress({status:'warning',message:'WebGPU initialization failed. Retrying once on CPU; a different model variant may need downloading.'});
-          if(!this.options.workerURL){
-            const {stageVoiceAssets}=await import(CACHE_MODULE_URL);
-            if(lifecycle!==this.lifecycle)throw aborted();
-            await stageVoiceAssets({signal:controller.signal,onProgress});
-          }
+          if(!error.retryableGPU||initialDevice==='wasm')throw error;
+          onProgress({status:'warning',message:'WebGPU initialization failed. Retrying once on CPU with the Android native decoder when available.'});
+          await prepareCpuPath();
           if(lifecycle!==this.lifecycle)throw aborted();
-          result=await this.request('load',{device:'wasm'},onProgress);
+          result=await this.request('load',{device:'wasm',nativeDecoder:!!this.nativeDecoder},onProgress);
         }
         if(lifecycle!==this.lifecycle)throw aborted();this.device=result.device;
         this.capabilities={exaggeration:result.exaggerationSupported!==false,temperature:true,topK:true,topP:false};
