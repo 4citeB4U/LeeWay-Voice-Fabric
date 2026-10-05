@@ -21,7 +21,8 @@ const requestedDevice=new URLSearchParams(globalThis.location?.search||'').get('
 // Fail closed: if the constrained backend cannot prepare, do not substitute Android/system TTS for Voice One.
 const androidClient=/Android/i.test(globalThis.navigator?.userAgent||'');
 const nativeBinding=globalThis.LeeWayPocketDecoder;
-const nativeBindingComplete=!!nativeBinding&&['prepare','encode','decode','cancel'].every(name=>typeof nativeBinding[name]==='function');
+const nativeOptIn=new URLSearchParams(globalThis.location?.search||'').get('native')==='1';
+const nativeBindingComplete=nativeOptIn&&!!nativeBinding&&['prepare','encode','decode','cancel'].every(name=>typeof nativeBinding[name]==='function');
 // WASM offload is legal only when the complete native encoder+decoder contract exists.
 // Older Pocket builds expose decoder-only bindings; those must return to automatic WebGPU/browser execution,
 // never Android/system TTS and never a fake Voice One label.
