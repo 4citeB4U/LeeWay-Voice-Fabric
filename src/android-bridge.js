@@ -20,8 +20,13 @@ const requestedDevice=new URLSearchParams(globalThis.location?.search||'').get('
 // An explicit supported client hint wins. Provider/backend is replaceable and never becomes voice identity.
 // Fail closed: if the constrained backend cannot prepare, do not substitute Android/system TTS for Voice One.
 const androidClient=/Android/i.test(globalThis.navigator?.userAgent||'');
-const device=requestedDevice==='wasm'||(!requestedDevice&&androidClient)?'wasm':undefined;
-const voice=new globalThis.LeeWayBrowserVoice({device,nativeDecoder:globalThis.LeeWayPocketDecoder,onUnavailable:error=>{
+const nativeBinding=globalThis.LeeWayPocketDecoder;
+const nativeBindingComplete=!!nativeBinding&&['prepare','encode','decode','cancel'].every(name=>typeof nativeBinding[name]==='function');
+// WASM offload is legal only when the complete native encoder+decoder contract exists.
+// Older Pocket builds expose decoder-only bindings; those must return to automatic WebGPU/browser execution,
+// never Android/system TTS and never a fake Voice One label.
+const device=(requestedDevice==='wasm'&&nativeBindingComplete)||(!requestedDevice&&androidClient&&nativeBindingComplete)?'wasm':undefined;
+const voice=new globalThis.LeeWayBrowserVoice({device,nativeDecoder:nativeBindingComplete?nativeBinding:undefined,onUnavailable:error=>{
   state.ready=false;state.device=null;
   if(error?.name==='AbortError'){
     state.lastError=null;setState('VOICE_STOPPED',{ready:false});return;
