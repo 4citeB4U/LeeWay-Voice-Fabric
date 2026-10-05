@@ -1,0 +1,16 @@
+{
+  "schemaVersion":"1.0.0",
+  "profileId":"agent-lee-active-voice-v1",
+  "authority":"4citeB4U/LeeWay-Voice-Fabric",
+  "agentIdentityAuthority":"agent-lee-entity-identity-authority",
+  "voicePackageId":"agent-lee-voice-one",
+  "providerPolicy":"Voice Fabric package identity is authoritative; backend/provider is replaceable.",
+  "offlinePolicy":{
+    "useLastVerifiedSelection":true,
+    "fallbackMustBeLabeledNotVoiceOne":true,
+    "silentSubstitution":false
+  },
+  "lifecycle":["speech.output","speech.stream","speech.cancel","speech.resume","speech.voice_inventory"],
+  "formulaMapping":"4citeB4U/Leeway-formula-live/contracts/domain-adapters/voice-runtime-state-v1.json",
+  "formulaNumericState":"NOT_EXECUTED_UNTIL_CALIBRATED"
+}
