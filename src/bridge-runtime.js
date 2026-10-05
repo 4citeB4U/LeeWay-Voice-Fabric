@@ -1,7 +1,9 @@
 import {voiceRegistry} from './voice-registry.js';
+import {createRtcVoiceBinding} from './edge-rtc-voice-adapter.js';
 const token=new URLSearchParams(location.hash.slice(1)).get('token')||'';
 const voice=new globalThis.LeeWayBrowserVoice();
-let activeStream=null,activeStreamId=null,selectedVoiceId='agent-lee-voice-one';
+let activeStream=null,activeStreamId=null,selectedVoiceId='agent-lee-voice-one',rtcBinding=null;
+const clearStream=()=>{activeStream?.fail(new DOMException('Speech was stopped.','AbortError'));activeStream=null;activeStreamId=null;};
 const reply=(source,origin,id,ok,data,error)=>source.postMessage({token,replyTo:id,ok,data,error},origin);
 const event=(source,origin,type,data)=>source.postMessage({token,type,data},origin);
 const requireStream=id=>{if(!activeStream||activeStreamId!==id)throw new Error('Unknown voice stream.');return activeStream;};
@@ -12,13 +14,14 @@ async function applyVoicePackage(id,{ensureEngine=false}={}){
   voice.exaggeration=Number(pkg.exaggeration);voice.setPace(pkg.pace);selectedVoiceId=pkg.id;return pkg;
 }
 addEventListener('message',async e=>{
-  const m=e.data||{};if(m.scope!=='leeway.voice.v1'||m.token!==token||!m.id)return;
+  const m=e.data||{};if(!token||e.source!==parent||m.scope!=='leeway.voice.v1'||m.token!==token||!m.id)return;
   try{
     switch(m.command){
       case 'ping': reply(e.source,e.origin,m.id,true,{version:'2.0.0',selectedVoiceId});break;
       case 'listVoices': reply(e.source,e.origin,m.id,true,{voices:await voiceRegistry.list(),selectedVoiceId});break;
       case 'getVoice': reply(e.source,e.origin,m.id,true,{voice:await voiceRegistry.get(String(m.data?.voicePackageId||''))});break;
       case 'selectVoice':{
+        rtcBinding?.dispose();rtcBinding=null;
         const pkg=await applyVoicePackage(String(m.data?.voicePackageId||''),{ensureEngine:false});
         reply(e.source,e.origin,m.id,true,{selectedVoiceId:pkg.id,voice:pkg});break;
       }
@@ -42,23 +45,32 @@ addEventListener('message',async e=>{
         reply(e.source,e.origin,m.id,true,{completed:true,selectedVoiceId});break;
       case 'streamStart':
         voice.stop();activeStreamId=String(m.data?.streamId||'');if(!activeStreamId)throw new Error('streamId required.');
+        const startedStreamId=activeStreamId;
         activeStream=new globalThis.LeeWaySpeechStream();
-        activeStream.task=voice.speakStream(activeStream,{onState:s=>event(e.source,e.origin,'voice.state',{message:s,selectedVoiceId}),onRendered:text=>event(e.source,e.origin,'voice.rendered',{streamId:activeStreamId,text,selectedVoiceId})})
-          .catch(error=>event(e.source,e.origin,'voice.error',{message:error.message,selectedVoiceId}));
+        activeStream.task=voice.speakStream(activeStream,{onState:s=>event(e.source,e.origin,'voice.state',{message:s,selectedVoiceId}),onRendered:text=>event(e.source,e.origin,'voice.rendered',{streamId:startedStreamId,text,selectedVoiceId})})
+          .catch(error=>{if(error.name!=='AbortError')event(e.source,e.origin,'voice.error',{message:error.message,selectedVoiceId});throw error;});
+        activeStream.task.catch(()=>{}); // observe early rejection; streamEnd still receives the failure
         reply(e.source,e.origin,m.id,true,{streamId:activeStreamId,selectedVoiceId});break;
       case 'streamChunk':
         requireStream(String(m.data?.streamId)).push(String(m.data?.text||''));reply(e.source,e.origin,m.id,true,{accepted:true});break;
       case 'streamEnd':{
-        const stream=requireStream(String(m.data?.streamId));stream.end();await stream.task;activeStream=null;activeStreamId=null;
+        const stream=requireStream(String(m.data?.streamId));stream.end();await stream.task;if(activeStream===stream){activeStream=null;activeStreamId=null;}
         reply(e.source,e.origin,m.id,true,{completed:true,selectedVoiceId});break;
       }
       case 'stop':
         voice.stop();activeStream?.fail(new DOMException('Speech was stopped.','AbortError'));activeStream=null;activeStreamId=null;
         reply(e.source,e.origin,m.id,true,{stopped:true,selectedVoiceId});break;
+      case 'rtcEvent':{
+        if(!rtcBinding)rtcBinding=createRtcVoiceBinding({voice,sessionId:m.data?.sessionId,
+          voicePackageId:selectedVoiceId,getVoicePackageId:()=>selectedVoiceId,
+          onInvalidate:clearStream,onTranscript:input=>event(e.source,e.origin,'voice.input.final',input)});
+        const result=await rtcBinding.handle(m.data);
+        reply(e.source,e.origin,m.id,true,result);break;
+      }
       case 'metrics':
         reply(e.source,e.origin,m.id,true,{events:globalThis.LeeWayVoiceMetrics?.snapshot?.()||[],selectedVoiceId});break;
       case 'dispose':
-        await voice.dispose();activeStream=null;activeStreamId=null;reply(e.source,e.origin,m.id,true,{disposed:true});break;
+        rtcBinding?.dispose();rtcBinding=null;await voice.dispose();activeStream=null;activeStreamId=null;reply(e.source,e.origin,m.id,true,{disposed:true});break;
       default: throw new Error('Unknown Voice Fabric command.');
     }
   }catch(error){reply(e.source,e.origin,m.id,false,null,error.message||String(error));}

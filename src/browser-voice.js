@@ -41,7 +41,7 @@
       this.options=options;this.ready=false;this.loading=null;this.epoch=0;this.id=0;
       this.pending=new Map();this.sources=new Set();this.finishPlayback=new Set();this.device=null;this.lifecycle=0;
       this.exaggeration=.25;
-      this.playbackRate=1.22;
+      this.playbackRate=1.22;this.paused=false;
     }
     static get download(){return {model:'onnx-community/chatterbox-ONNX',revision:REVISION,webgpuBytes:1499401538,wasmBytes:1548283901,referenceBytes:720078};}
     static chunks(text){return chunks(text);}
@@ -208,12 +208,31 @@
         const source={media,stop:()=>media.pause()};this.sources.add(source);
         let finished=false;
         const finish=error=>{if(finished)return;finished=true;media.onended=null;media.onerror=null;media.onplaying=null;media.pause();media.removeAttribute('src');media.load();URL.revokeObjectURL(url);this.sources.delete(source);this.finishPlayback.delete(finish);if(epoch!==this.epoch)reject(aborted());else if(error)reject(error);else resolve();};
-        this.finishPlayback.add(finish);media.onplaying=()=>root.LeeWayVoiceMetrics?.record('playback-start');media.onended=()=>finish();media.onerror=()=>finish(new Error('Browser audio playback failed.'));media.play().catch(finish);
+        this.finishPlayback.add(finish);source.finish=finish;media.onplaying=()=>root.LeeWayVoiceMetrics?.record('playback-start');media.onended=()=>finish();media.onerror=()=>finish(new Error('Browser audio playback failed.'));if(!this.paused)media.play().catch(finish);
       });
+    }
+    pause(){
+      // HTMLAudio pause retains currentTime and the live speech generation.
+      this.paused=true;
+      for(const source of this.sources)source.media?.pause();
+      root.LeeWayVoiceMetrics?.record('local-pause',{epoch:this.epoch,sources:this.sources.size});
+      return {paused:true,epoch:this.epoch};
+    }
+    async resume(){
+      const epoch=this.epoch;this.paused=false;
+      for(const source of [...this.sources]){
+        if(epoch!==this.epoch)throw aborted();
+        if(!source.media)continue;
+        try{await source.media.play();}
+        catch(error){source.finish?.(error);throw error;}
+        if(epoch!==this.epoch){source.media.pause();throw aborted();}
+      }
+      root.LeeWayVoiceMetrics?.record('local-resume',{epoch:this.epoch,sources:this.sources.size});
+      return {paused:false,epoch:this.epoch};
     }
     setPace(value){this.playbackRate=Math.max(.6,Math.min(1.6,Number(value)||1.22));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
     stop(){
-      ++this.epoch;this.worker?.postMessage({type:'stop',epoch:this.epoch});
+      ++this.epoch;this.paused=false;this.worker?.postMessage({type:'stop',epoch:this.epoch});
       this.nativeDecoder?.cancel(true);
       for(const source of this.sources){try{source.stop()}catch{}}
       for(const finish of [...this.finishPlayback])finish();this.sources.clear();

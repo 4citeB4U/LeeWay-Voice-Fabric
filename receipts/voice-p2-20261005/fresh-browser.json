@@ -1,0 +1,164 @@
+{
+  "schema": "leeway.voice.p2.fresh-speech.v1",
+  "startedAt": "2026-10-05T23:11:11.548Z",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "canonical engine is ready before testing",
+      "pass": true
+    },
+    {
+      "name": "Voice One is bound",
+      "pass": true
+    },
+    {
+      "name": "new text passed through neural synthesis and started real playback",
+      "pass": true,
+      "device": "webgpu"
+    },
+    {
+      "name": "pause retains fresh audio position and generation",
+      "pass": true,
+      "pausedAt": 0.161107,
+      "afterPause": 0.161107
+    },
+    {
+      "name": "resume continues the same newly generated media",
+      "pass": true,
+      "resumedAt": 0.390027
+    },
+    {
+      "name": "interruption stops current speech and invalidates stream",
+      "pass": true
+    },
+    {
+      "name": "resume does not replay discarded speech",
+      "pass": true
+    },
+    {
+      "name": "voicePackageId remains stable across all controls",
+      "pass": true
+    },
+    {
+      "name": "new neural speech turn starts after interruption",
+      "pass": true
+    },
+    {
+      "name": "new turn completes actual playout",
+      "pass": true
+    }
+  ],
+  "humanAudibility": "AWAITING_CREATOR",
+  "microphoneRtcReasoning": "NOT_TESTED",
+  "formulaExecution": "NOT_EXECUTED",
+  "finishedAt": "2026-10-05T23:14:01.856Z",
+  "metrics": [
+    {
+      "stage": "local-stop",
+      "atMs": 359931,
+      "durationMs": 0.10000000149011612
+    },
+    {
+      "stage": "tts-start",
+      "atMs": 359932,
+      "segment": 1
+    },
+    {
+      "stage": "tts-ready",
+      "atMs": 458034,
+      "segment": 1,
+      "durationMs": 98102.89999999851,
+      "generationMs": 98097.5,
+      "tokenPhaseMs": 14260.39999999851,
+      "waveformPhaseMs": 83837.10000000149,
+      "audioSeconds": 11.16
+    },
+    {
+      "stage": "playback-request",
+      "atMs": 458037,
+      "segment": 1
+    },
+    {
+      "stage": "tts-start",
+      "atMs": 458042,
+      "segment": 2
+    },
+    {
+      "stage": "playback-start",
+      "atMs": 458228
+    },
+    {
+      "stage": "local-pause",
+      "atMs": 458587,
+      "epoch": 3,
+      "sources": 1
+    },
+    {
+      "stage": "playback-start",
+      "atMs": 458993
+    },
+    {
+      "stage": "local-resume",
+      "atMs": 458994,
+      "epoch": 3,
+      "sources": 1
+    },
+    {
+      "stage": "local-stop",
+      "atMs": 459182,
+      "durationMs": 0.29999999701976776
+    },
+    {
+      "stage": "local-resume",
+      "atMs": 459887,
+      "epoch": 4,
+      "sources": 0
+    },
+    {
+      "stage": "local-stop",
+      "atMs": 460199,
+      "durationMs": 0
+    },
+    {
+      "stage": "tts-start",
+      "atMs": 460200,
+      "segment": 1
+    },
+    {
+      "stage": "tts-ready",
+      "atMs": 525158,
+      "segment": 1,
+      "durationMs": 64958.29999999702,
+      "generationMs": 41527.10000000149,
+      "tokenPhaseMs": 6351,
+      "waveformPhaseMs": 35176.10000000149,
+      "audioSeconds": 5.68
+    },
+    {
+      "stage": "playback-request",
+      "atMs": 525159,
+      "segment": 1
+    },
+    {
+      "stage": "playback-start",
+      "atMs": 525380
+    },
+    {
+      "stage": "segment-rendered",
+      "atMs": 530236,
+      "segment": 1
+    }
+  ],
+  "final": {
+    "sessionId": "voice-lab-p2",
+    "voicePackageId": "agent-lee-voice-one",
+    "voiceAuthority": "4citeB4U/LeeWay-Voice-Fabric",
+    "personaAuthority": "UPSTREAM_AGENT_LEE_RUNTIME",
+    "epoch": 5,
+    "paused": false,
+    "activeSources": 0,
+    "pendingSynthesis": 0,
+    "bufferedCharacters": 0,
+    "disposed": false
+  }
+}

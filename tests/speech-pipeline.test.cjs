@@ -106,8 +106,8 @@ test('lab delivery adjustments made during preparation survive async loading',as
  const pkg={id:'agent-lee-voice-one',name:'Agent Lee',owner:'Creator',source:'BUILTIN',provider:'chatterbox',exaggeration:.25,pace:1};
  let release,instance;const loaded=new Promise(resolve=>release=resolve);
  class Voice {constructor(){instance=this;this.ready=false}setPace(value){this.playbackRate=Number(value)}async load(){await loaded;this.ready=true}async setReference(){}stop(){}}
- const scope={console,queueMicrotask,setTimeout,clearTimeout,LeeWayBrowserVoice:Voice,voiceRegistry:{list:async()=>[pkg],get:async()=>pkg,audio:async()=>({})},document:{querySelector:node,querySelectorAll:()=>[]},addEventListener(){}};
- vm.createContext(scope);vm.runInContext(fs.readFileSync(__dirname+'/../src/lab.js','utf8').replace(/^import .*?;\r?\n/,''),scope);
+ const scope={console,queueMicrotask,setTimeout,clearTimeout,createRtcVoiceBinding:()=>({snapshot:()=>({})}),LeeWayBrowserVoice:Voice,voiceRegistry:{list:async()=>[pkg],get:async()=>pkg,audio:async()=>({})},document:{querySelector:node,querySelectorAll:()=>[]},addEventListener(){}};
+ vm.createContext(scope);vm.runInContext(fs.readFileSync(__dirname+'/../src/lab.js','utf8').replace(/^import .*?;\r?\n/gm,''),scope);
  await tick();node('#delivery').value='.5';node('#delivery').onchange({target:node('#delivery')});node('#pace').value='1.03';node('#pace').oninput({target:node('#pace')});
  release();await tick();assert.equal(instance.exaggeration,.5);assert.equal(instance.playbackRate,1.03);assert.equal(node('#state').textContent,'Agent Lee Voice One ready.');
 });
