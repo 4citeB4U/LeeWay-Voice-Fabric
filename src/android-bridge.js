@@ -16,11 +16,10 @@ import {voiceRegistry} from './voice-registry.js';
 let VOICE_ID='agent-lee-voice-one';
 // An Android adapter can avoid a crashing GPU driver without changing Voice One.
 const requestedDevice=new URLSearchParams(globalThis.location?.search||'').get('device');
-// Regression repair: Pocket historically spoke through the normal browser backend.
-// A later APK added ?device=wasm and forced every capable phone onto the new CPU path.
-// Treat that legacy query as a fallback hint again; LeeWayBrowserVoice will try WebGPU
-// first and fall back to WASM when GPU initialization is unavailable or fails.
-const device=undefined;
+// Fold6 C3-4 LOD repair: honor the client's explicit backend hint without changing Voice One identity.
+// The voicePackageId remains agent-lee-voice-one; only the replaceable rendering backend changes.
+// This is fail-closed: if the constrained backend cannot prepare, no Android/system TTS substitution occurs.
+const device=requestedDevice==='wasm'?'wasm':undefined;
 const voice=new globalThis.LeeWayBrowserVoice({device,nativeDecoder:globalThis.LeeWayPocketDecoder,onUnavailable:error=>{
   state.ready=false;state.device=null;
   if(error?.name==='AbortError'){
