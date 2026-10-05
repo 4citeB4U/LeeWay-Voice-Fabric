@@ -16,10 +16,11 @@ import {voiceRegistry} from './voice-registry.js';
 let VOICE_ID='agent-lee-voice-one';
 // An Android adapter can avoid a crashing GPU driver without changing Voice One.
 const requestedDevice=new URLSearchParams(globalThis.location?.search||'').get('device');
-// Fold6 C3-4 LOD repair: honor the client's explicit backend hint without changing Voice One identity.
-// The voicePackageId remains agent-lee-voice-one; only the replaceable rendering backend changes.
-// This is fail-closed: if the constrained backend cannot prepare, no Android/system TTS substitution occurs.
-const device=requestedDevice==='wasm'?'wasm':undefined;
+// Fold6 C3-4 LOD repair: Android defaults to the constrained WASM backend while Voice One identity remains unchanged.
+// An explicit supported client hint wins. Provider/backend is replaceable and never becomes voice identity.
+// Fail closed: if the constrained backend cannot prepare, do not substitute Android/system TTS for Voice One.
+const androidClient=/Android/i.test(globalThis.navigator?.userAgent||'');
+const device=requestedDevice==='wasm'||(!requestedDevice&&androidClient)?'wasm':undefined;
 const voice=new globalThis.LeeWayBrowserVoice({device,nativeDecoder:globalThis.LeeWayPocketDecoder,onUnavailable:error=>{
   state.ready=false;state.device=null;
   if(error?.name==='AbortError'){
