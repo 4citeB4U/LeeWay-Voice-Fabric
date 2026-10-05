@@ -3,7 +3,7 @@ const randomToken=()=>crypto.getRandomValues(new Uint32Array(4)).join('-');
 
 export class LeeWayVoiceClient {
   constructor({origin=DEFAULT_ORIGIN,timeoutMs=120000,prepareInactivityMs=15*60_000}={}){
-    this.origin=origin.replace(/\/$/,'');this.timeoutMs=timeoutMs;this.token=randomToken();
+    this.origin=origin.replace(/\/$/,'');this.timeoutMs=timeoutMs;this.token=randomToken();this.rtcSessionId='voice-'+this.token;
     this.prepareInactivityMs=prepareInactivityMs;this._connectionTimer=null;this._rejectConnection=null;
     this.destroyed=false;this.seq=0;this.pending=new Map();this.listeners=new Map();this.frame=null;this.ready=null;
   }
@@ -55,6 +55,10 @@ export class LeeWayVoiceClient {
   streamChunk(streamId,text){return this.call('streamChunk',{streamId,text:String(text)});}
   streamEnd(streamId){return this.call('streamEnd',{streamId});}
   stop(){return this.call('stop');}
+  rtcEvent(event){return this.call('rtcEvent',{...event,sessionId:this.rtcSessionId});}
+  pause(){return this.rtcEvent({type:'speech.pause'});}
+  resume(){return this.rtcEvent({type:'speech.resume'});}
+  interrupt(){return this.rtcEvent({type:'barge-in'});}
   metrics(){return this.call('metrics');}
   async setReference(file){
     const buffer=await file.arrayBuffer();return this.call('setReference',{name:file.name,type:file.type,audio:buffer},[buffer]);

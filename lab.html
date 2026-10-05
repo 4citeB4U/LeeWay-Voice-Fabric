@@ -27,7 +27,7 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}@media(max-width:800p
 <label>Display name <input id="newName" type="text" placeholder="Agent Name · Voice One"></label>
 <label>Agent / worker owner <input id="newOwner" type="text" placeholder="Agent Name"></label>
 <label>Reference audio <input id="newReference" type="file" accept="audio/*"></label>
-<div class="split"><label>Delivery <select id="newDelivery"><option value=".15">Very calm</option><option value=".25" selected>Calm</option><option value=".5">Natural</option><option value=".7">Lively</option></select></label>
+<div class="split"><label>Delivery <select id="newDelivery"><option value="0.15">Very calm</option><option value="0.25" selected>Calm</option><option value="0.5">Natural</option><option value="0.7">Lively</option></select></label>
 <label>Pace <input id="newPace" type="number" min=".85" max="1.3" step=".01" value="1.22"></label></div>
 <div class="row"><button class="primary" id="saveVoice">Save package</button><button id="exportVoice">Export selected</button><button class="danger" id="deleteVoice">Delete local package</button></div>
 </section>
@@ -36,18 +36,18 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}@media(max-width:800p
 <h2 id="selectedTitle">Selected voice</h2>
 <p id="selectedMeta" class="muted"></p>
 <div class="controls">
-<label>Delivery <select id="delivery"><option value=".15">Very calm</option><option value=".25">Calm</option><option value=".5">Natural</option><option value=".7">Lively</option></select></label>
+<label>Delivery <select id="delivery"><option value="0.15">Very calm</option><option value="0.25">Calm</option><option value="0.5">Natural</option><option value="0.7">Lively</option></select></label>
 <label>Pace <div class="row"><input id="pace" type="range" min=".85" max="1.3" value="1.22" step=".01"><output id="paceValue">1.22×</output></div></label>
 </div>
-<div class="row"><span class="status" id="voiceReadyState">Voice One loading automatically…</span><button id="stop">Stop speaking</button></div>
+<div class="row"><span class="status" id="voiceReadyState">Voice One loading automatically…</span><button id="pause">Pause</button><button id="resume">Resume</button><button id="interrupt" class="danger">Interrupt / discard stale speech</button><button id="stop">Stop speaking</button></div>
 <hr>
-<label>Speech text<textarea id="text">This voice package is speaking through the LeeWay Voice Fabric.</textarea></label>
+<label>Speech text<textarea id="text">Speaking on main. Leonard, this is Agent Lee Voice One. Pause me in the middle of this sentence, wait a moment, and then press Resume. After I continue, press Interrupt. The old sentence must stay stopped, and the next spoken turn must keep this same voice.</textarea></label>
 <div class="row"><button class="primary" id="speak">Speak</button><button id="stream">Simulate streamed answer</button></div>
 <hr>
 <h2>Service contract</h2>
 <p class="muted">Other LeeWay applications use the SDK to list packages, select a <code>voicePackageId</code>, then speak or stream text. Every agent/worker creation contract must bind one voice package.</p>
 <pre id="sdkExample" class="log">Loading SDK example…</pre>
-<h2>Local timing / state</h2><pre id="log" class="log"></pre>
+<h2>Live P2 behavior gate</h2><p class="muted">Candidate test surface. Speak your text, pause mid-sentence, resume, then interrupt. Voice One must remain unchanged. Microphone / upstream conversation acceptance is separate from this speech-output test.</p><div class="row"><button id="exportGate">Export test receipt</button></div><pre id="gateSnapshot" class="log" aria-live="polite"></pre><h2>Local timing / state</h2><pre id="log" class="log"></pre>
 </section>
 </div>
 </main>

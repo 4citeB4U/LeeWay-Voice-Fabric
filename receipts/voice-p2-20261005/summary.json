@@ -1,0 +1,103 @@
+{
+  "schema": "leeway.voice.p2.repair-evidence.v1",
+  "recordedAt": "2026-10-05T23:15:48.153629+00:00",
+  "authority": "4citeB4U/LeeWay-Voice-Fabric",
+  "pullRequest": 12,
+  "baselineCommit": "b0092f49aabd7614b26fac2dbcfd054110f2403e",
+  "runtime": "Windows Chrome / WebGPU / existing Voice One browser engine",
+  "voicePackageId": "agent-lee-voice-one",
+  "automated": {
+    "node": {
+      "passed": 118,
+      "failed": 0
+    },
+    "python": {
+      "passed": 24,
+      "failed": 0
+    },
+    "realBrowserFixtureChecks": 9,
+    "freshNeuralSpeechChecks": 10,
+    "commands": [
+      {
+        "name": "syntax",
+        "command": [
+          "npm.cmd",
+          "run",
+          "check"
+        ],
+        "exitCode": 0,
+        "log": "receipts/voice-p2-20261005/syntax.txt"
+      },
+      {
+        "name": "node-tests",
+        "command": [
+          "npm.cmd",
+          "test"
+        ],
+        "exitCode": 0,
+        "log": "receipts/voice-p2-20261005/node-tests.txt"
+      },
+      {
+        "name": "python-tests",
+        "command": [
+          "python",
+          "-m",
+          "unittest",
+          "discover",
+          "-s",
+          "tests",
+          "-p",
+          "test_*.py"
+        ],
+        "exitCode": 0,
+        "log": "receipts/voice-p2-20261005/python-tests.txt"
+      }
+    ]
+  },
+  "liveReadiness": "BLOCKED_BY_SYNTHESIS_LATENCY_AND_PENDING_END_TO_END_ACCEPTANCE",
+  "measured": {
+    "firstSegmentTtsReadyMs": 98102.9,
+    "firstSegmentTokenMs": 14260.4,
+    "firstSegmentWaveformMs": 83837.1,
+    "firstAudioSeconds": 11.16,
+    "postInterruptTtsReadyMs": 64958.3,
+    "postInterruptGenerationMs": 41527.1,
+    "postInterruptAudioSeconds": 5.68
+  },
+  "creatorHearing": "AWAITING_CREATOR",
+  "microphoneRtcAgentLeeConversation": "NOT_TESTED",
+  "android": "NOT_TESTED",
+  "formulaExecution": "NOT_EXECUTED",
+  "nativeVeritasGate": "NOT_RUN",
+  "promotion": "NOT_PROMOTED_DRAFT_PR",
+  "ui": {
+    "url": "http://127.0.0.1:8781/lab.html",
+    "state": "Ready.",
+    "gate": {
+      "sessionId": "voice-lab-p2",
+      "voicePackageId": "agent-lee-voice-one",
+      "voiceAuthority": "4citeB4U/LeeWay-Voice-Fabric",
+      "personaAuthority": "UPSTREAM_AGENT_LEE_RUNTIME",
+      "epoch": 5,
+      "paused": false,
+      "activeSources": 0,
+      "pendingSynthesis": 0,
+      "bufferedCharacters": 0,
+      "disposed": false
+    }
+  },
+  "provenanceNote": "Browser speech receipts preceded the appended first-gesture greeting guard in lab.js. Core speech/adapter/bridge sources were unchanged. That additional UI guard was subsequently executed by the 118-test Node suite; the browser is reloaded for Creator testing. File hashes describe the evidence-capture checkout, not a claim that every file ran in every gate.",
+  "sourceSha256": {
+    "src/edge-rtc-voice-adapter.js": "0ae17cdd66340c16f2aff63ef4100a8b7d364f8305ca93f5d439fc37a1defba0",
+    "src/browser-voice.js": "b68ebc315d3ddbc7dd997f10bc4fc68737ae90120937b24745f2a35480cd8840",
+    "src/speech-pipeline.js": "95abe3ac78ef29261ed84f79287f0481afa53c8e9752e6f66580f22f7d1a5c89",
+    "src/bridge-runtime.js": "2f6705bd3ace0d46306688eb0f9f2421db6dc806ba2c4665261700df6553aa07",
+    "src/voice-sdk.js": "f4291c08bc794d19b4d8034eac8c3cba98dfcf403c85e5994c161aa39070205f",
+    "src/lab.js": "87ff119bad2099579402713aaba0e4f0528ec6d853cb1a23006a43bc39d11d07",
+    "lab.html": "3a27c384b0e7c0388269fb6bb21ceea0d6501cce7c39e9408748dcf04ed6832e",
+    "tests/edge-rtc-voice-adapter.test.cjs": "34b5fcf08feaefb420ab1f72d67395a2dc574f9a5a2662833941df5b76bac0b8",
+    "tests/voice-lab-controls.test.cjs": "f8e6746a4aaf6290b9dd7108eaa610bf66a6a26e123a1ca86111b576385b58b5",
+    "tests/rtc-browser-playback-gate.js": "044db64e2e545909afb91767a524be82933b1f2cc4e187b36d980e9e703e7ebe",
+    "tests/rtc-fresh-speech-gate.js": "14d44bb3ead949791ad47f153857c4e78e73a9a8a9763e6de412ddee0bd86b17"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "schema": "leeway.voice.p2.browser-playback.v1",
+  "at": "2026-10-05T23:08:01.942Z",
+  "page": "http://127.0.0.1:8781/lab.html",
+  "status": "PASS",
+  "failure": null,
+  "checks": [
+    {
+      "name": "versioned Voice One sample is reachable",
+      "pass": true
+    },
+    {
+      "name": "fixture has nonzero audio",
+      "pass": true,
+      "durationSeconds": 11.969333333333333,
+      "sha256": "a8a2a8f45bb6b3e9330661c1fb30c18d836f16cccc3e7ccd1d86f4b67585b2c4"
+    },
+    {
+      "name": "HTMLAudioElement starts and its clock advances",
+      "pass": true
+    },
+    {
+      "name": "pause freezes position without invalidation",
+      "pass": true,
+      "pausedAt": 0.184176,
+      "afterPause": 0.184176
+    },
+    {
+      "name": "resume continues the same media object",
+      "pass": true,
+      "resumedAt": 0.336414
+    },
+    {
+      "name": "barge-in detaches media and rejects old playback",
+      "pass": true
+    },
+    {
+      "name": "stale-epoch audio cannot restart",
+      "pass": true
+    },
+    {
+      "name": "resume after interruption does not resurrect audio or change package",
+      "pass": true
+    },
+    {
+      "name": "browser executes transcript normalization with upstream persona authority",
+      "pass": true
+    }
+  ],
+  "voicePackageId": "agent-lee-voice-one",
+  "audioSource": "versioned Voice One sample fixture",
+  "freshTextSynthesis": "NOT_EXECUTED",
+  "microphoneRtcReasoning": "NOT_TESTED",
+  "humanAudibility": "AWAITING_CREATOR",
+  "formulaExecution": "NOT_EXECUTED"
+}
