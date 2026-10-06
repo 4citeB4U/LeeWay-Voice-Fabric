@@ -33,12 +33,12 @@ if(isMainThread)http.createServer(async(req,res)=>{
   let data;try{data=JSON.parse(body);}catch{return json(res,400,{error:'Invalid JSON'});}
   if(!data||!voices.includes(data.voiceId)||typeof data.text!=='string'||!data.text.trim()||data.text.length>1500)return json(res,400,{error:'Select a supported voice and 1–1500 characters.'});
   if(busy)return json(res,429,{error:'A local audition is already running. Try again when it finishes.'});
-  busy=true;try{const result=await synthesize(data.text,data.voiceId);return json(res,200,{audioContent:result.wav.toString('base64'),sampleRate:24000,format:'wav',engine:'kokoro-82m-q8-cpu',metrics:result.metrics});}finally{busy=false;}
+  busy=true;try{const result=await synthesize(data.text,data.voiceId);return json(res,200,{voicePackageId:'kokoro-'+result.voiceId,provider:'kokoro',voiceId:result.voiceId,audioContent:result.wav.toString('base64'),sampleRate:24000,format:'wav',engine:'kokoro-82m-q8-cpu',metrics:result.metrics});}finally{busy=false;}
  }catch(error){json(res,500,{error:'Local synthesis failed. Inspect the adapter log.'});console.error(error.message);}
 }).listen(port,'127.0.0.1',()=>console.log(`Local Kokoro adapter: http://127.0.0.1:${port}`));
 
 let engine,sequence=0;const pending=new Map();
-function synthesize(text,voice){return new Promise((resolve,reject)=>{const id=++sequence;const timer=setTimeout(()=>{pending.delete(id);state='failed';message='Local engine timed out. Restart the adapter.';engine.terminate();reject(new Error(message));},180000);pending.set(id,{resolve,reject,timer});engine.postMessage({id,text,voice});});}
+function synthesize(text,voice){return new Promise((resolve,reject)=>{const id=++sequence;const timer=setTimeout(()=>{pending.delete(id);state='failed';message='Local engine timed out. Restart the adapter.';engine.terminate();reject(new Error(message));},180000);pending.set(id,{resolve,reject,timer,voiceId:voice});engine.postMessage({id,text,voice});});}
 async function buildPreviews(){
  busy=true;await fs.mkdir(previewDir,{recursive:true});const receipt=[];
  try{for(const voice of voices){const text='Good morning. Let us take a clear look at what matters, make a thoughtful decision, and move forward with confidence.';const result=await synthesize(text,voice);await fs.writeFile(path.join(previewDir,voice+'.wav'),result.wav);receipt.push({voiceId:voice,text,modelHash,audioHash:createHash('sha256').update(result.wav).digest('hex'),...result.metrics});console.log(JSON.stringify(receipt.at(-1)));}await fs.writeFile(path.join(previewDir,'generation.json'),JSON.stringify(receipt,null,2));}finally{busy=false;}
@@ -48,7 +48,7 @@ if(isMainThread){
  engine.on('message',data=>{
   if(data.ready){state='ready';message='28 local Kokoro voices ready.';console.log(message);if(process.env.LEEWAY_BUILD_PREVIEWS==='1')buildPreviews().catch(console.error);return;}
   if(data.failed){state='failed';message='Local model could not load. Check the adapter log.';console.error(data.error);return;}
-  const job=pending.get(data.id);if(!job)return;pending.delete(data.id);clearTimeout(job.timer);data.error?job.reject(new Error(data.error)):job.resolve({wav:Buffer.from(data.wav),metrics:data.metrics});
+  const job=pending.get(data.id);if(!job)return;pending.delete(data.id);clearTimeout(job.timer);data.error?job.reject(new Error(data.error)):(data.voiceId===job.voiceId?job.resolve({wav:Buffer.from(data.wav),metrics:data.metrics,voiceId:data.voiceId}):job.reject(new Error('VOICE_WORKER_SPEAKER_MISMATCH')));
  });
  engine.on('error',error=>{state='failed';message='Local voice worker stopped. Restart the adapter.';console.error(error);for(const job of pending.values()){clearTimeout(job.timer);job.reject(new Error(message));}pending.clear();});
  engine.on('exit',()=>{state='failed';message='Local voice worker exited. Restart the adapter.';for(const job of pending.values()){clearTimeout(job.timer);job.reject(new Error(message));}pending.clear();});
@@ -58,6 +58,6 @@ if(isMainThread){
   const id=modelDir.replaceAll('\\','/')+'/';
   const [model,tokenizer]=await Promise.all([StyleTextToSpeech2Model.from_pretrained(id,{dtype:'q8',device:'cpu',session_options:{intraOpNumThreads:4,interOpNumThreads:1}}),AutoTokenizer.from_pretrained(id)]);
   tts=new KokoroTTS(model,tokenizer);parentPort.postMessage({ready:true});
-  parentPort.on('message',async({id,text,voice})=>{try{const result=await generateSamples(text,voice);parentPort.postMessage({id,...result});}catch(error){parentPort.postMessage({id,error:error.message});}});
+  parentPort.on('message',async({id,text,voice})=>{try{const result=await generateSamples(text,voice);parentPort.postMessage({id,...result,voiceId:voice});}catch(error){parentPort.postMessage({id,error:error.message});}});
  }catch(error){parentPort.postMessage({failed:true,error:error.message});}
 }

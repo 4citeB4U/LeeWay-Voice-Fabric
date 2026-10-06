@@ -137,3 +137,28 @@ export function agentVoiceBinding({
     voicePackageId:voice
   };
 }
+
+/* REGION: LEEWAY.VOICE.IDENTITY; TAG: OWNER_SELECTION_NOT_HOST_DEFAULT
+WHO: Existing Voice Fabric authority. WHAT: Resolve an explicit agent binding; no device inference.
+WHEN: Every spoken request. WHERE: portable core. WHY: One speaker across authorized bodies.
+HOW: Existing binding and catalog; qualification remains distinct from Creator production approval.
+LICENSE: MIT */
+export function resolveAgentVoiceSelection({bindings,catalog,agentId='agent-lee'}={}){
+  if(bindings?.authority!=='LEEWAY_VOICE_FABRIC')throw new Error('VOICE_FABRIC_AUTHORITY_REQUIRED');
+  if(typeof agentId!=='string'||!agentId||!Object.hasOwn(bindings.bindings||{},agentId))throw new Error('VOICE_SELECTION_REQUIRED');
+  const record=bindings.bindings[agentId];
+  if(record?.agentId!==agentId)throw new Error('VOICE_AGENT_IDENTITY_MISMATCH');
+  if(['agentId','personaFamily','personaArchetypeId','voicePackageId'].some(k=>typeof record[k]!=='string'||!record[k].trim()))throw new Error('VOICE_BINDING_INCOMPLETE');
+  const binding=agentVoiceBinding(record);
+  const qualificationOnly=record.state==='TEMPORARY_VERIFIED_PROVIDER'&&record.selectedBy==='CREATOR_PENDING_FINAL_AUDITION';
+  if(!qualificationOnly && !(record.state==='VERIFIED_CATALOG_SELECTION'&&record.selectedBy==='CREATOR'))throw new Error('CREATOR_VOICE_SELECTION_REQUIRED');
+  const matches=Array.isArray(catalog?.packages)?catalog.packages.filter(p=>p.id===binding.voicePackageId):[];
+  if(matches.length!==1)throw new Error('VOICE_PACKAGE_MISSING_OR_AMBIGUOUS');
+  const pkg=matches[0];
+  if(pkg.status!=='AVAILABLE')throw new Error('VOICE_PACKAGE_UNAVAILABLE');
+  if(!['kokoro','chatterbox'].includes(pkg.provider))throw new Error('DEVICE_TTS_NOT_AGENT_VOICE');
+  if(pkg.provider==='kokoro' && (typeof pkg.voiceId!=='string'||!pkg.voiceId))throw new Error('VOICE_PROVIDER_SPEAKER_REQUIRED');
+  return Object.freeze({...binding,authority:'LEEWAY_VOICE_FABRIC',provider:pkg.provider,voiceId:pkg.voiceId||null,
+    speakerId:pkg.speakerId||pkg.id,selectionState:record.state,selectedBy:record.selectedBy,qualificationOnly,
+    productionAdmitted:!qualificationOnly,deviceMayOverride:false,systemVoiceFallback:false});
+}

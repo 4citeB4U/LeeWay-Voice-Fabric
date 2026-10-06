@@ -1,0 +1,55 @@
+﻿{
+    "status":  "SOURCE_REPAIRED_TEST_AND_RESTART_REQUIRED",
+    "paths":  [
+                  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\src\\voice-package-core.js",
+                  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\runtime\\persona-voice-gate.mjs",
+                  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\adapters\\local-voice\\server.mjs",
+                  "E:\\LeeWay-Work\\pc-consciousness-live\\runtime\\machine-consciousness\\carrier-server.mjs"
+              ],
+    "existingVoiceSelectionChanged":  false,
+    "carrierOwnedSpeakerStoreRemoved":  true,
+    "defaultOnReadFailureRemoved":  true,
+    "remoteOwnerSelectionTransport":  "UNBOUND_NOT_REPLACED_BY_DEVICE_AUTHORITY",
+    "nativeTtsFallback":  false,
+    "phoneInstalled":  false,
+    "before":  [
+                   {
+                       "backup":  "0-voice-package-core.js",
+                       "sha256":  "ABC86953951A9AD15C531FEED44E80958A67B625C567D0DE36E4E80F1A0A5423",
+                       "source":  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\src\\voice-package-core.js"
+                   },
+                   {
+                       "backup":  "1-persona-voice-gate.mjs",
+                       "sha256":  "55D3A17C7A13E2A8FED09DF938B22794B763F0E706621356351F6650C0D59487",
+                       "source":  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\runtime\\persona-voice-gate.mjs"
+                   },
+                   {
+                       "backup":  "2-server.mjs",
+                       "sha256":  "AB2A37AB8ED8C1D30F213852FC27A318DB0221DD6403F7B6060CCCA8FCA40C57",
+                       "source":  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\adapters\\local-voice\\server.mjs"
+                   },
+                   {
+                       "backup":  "3-carrier-server.mjs",
+                       "sha256":  "7E680FA32128560AF3AD6A7E4D3B6CF08F43E93CB3747C4DCB5FD53BCE081176",
+                       "source":  "E:\\LeeWay-Work\\pc-consciousness-live\\runtime\\machine-consciousness\\carrier-server.mjs"
+                   }
+               ],
+    "after":  [
+                  {
+                      "sha256":  "8D99B304BD5EDEF7F5E323BBBCC9743210CFFCEB3268ECC80EE2CE1F3D99635A",
+                      "source":  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\src\\voice-package-core.js"
+                  },
+                  {
+                      "sha256":  "7F3F7D1D7E691A34B0C8B8DFD7BE50DEDD2D002634F4E3E0F81E7AE497376907",
+                      "source":  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\runtime\\persona-voice-gate.mjs"
+                  },
+                  {
+                      "sha256":  "FF52B21E9F00806CAB9C525DB609D4B8B0868C724D7B155261BD5439E80E0BB3",
+                      "source":  "E:\\LeeWay-Work\\pc-consciousness-live\\voice\\adapters\\local-voice\\server.mjs"
+                  },
+                  {
+                      "sha256":  "01D34CC83CAF1DF7EA66F0612D2D729E9814D93D672BEE1B0257EFF47AF9A043",
+                      "source":  "E:\\LeeWay-Work\\pc-consciousness-live\\runtime\\machine-consciousness\\carrier-server.mjs"
+                  }
+              ]
+}

@@ -1,0 +1,46 @@
+﻿{
+    "status":  "LIVE_CARRIER_RESOLVES_VOICE_FABRIC_SELECTION",
+    "owners":  [
+                   {
+                       "port":  8878,
+                       "pid":  20152,
+                       "name":  "node.exe"
+                   },
+                   {
+                       "port":  8877,
+                       "pid":  32760,
+                       "name":  "python.exe"
+                   },
+                   {
+                       "port":  8890,
+                       "pid":  30424,
+                       "name":  "node.exe"
+                   }
+               ],
+    "supervisorPid":  32944,
+    "selectionHashBefore":  "002F87C59B562E2F3BECFCC6C5435C1034C096937E9D0E3CF2D7F7B6DF2EEEEF",
+    "selectionChanged":  false,
+    "phoneTouched":  false,
+    "fullVoiceQualification":  false,
+    "voiceSupervisorPid":  12188,
+    "carrierPid":  40456,
+    "binding":  {
+                    "schema":  "leeway-agent-voice-binding/v1.1",
+                    "agentId":  "agent-lee",
+                    "personaFamily":  "AGENT_LEE_CONSTITUTIONAL",
+                    "personaArchetypeId":  "ELDER_MALE",
+                    "voicePackageId":  "kokoro-am_michael",
+                    "authority":  "LEEWAY_VOICE_FABRIC",
+                    "provider":  "kokoro",
+                    "voiceId":  "am_michael",
+                    "speakerId":  "kokoro-am_michael",
+                    "selectionState":  "TEMPORARY_VERIFIED_PROVIDER",
+                    "selectedBy":  "CREATOR_PENDING_FINAL_AUDITION",
+                    "qualificationOnly":  true,
+                    "productionAdmitted":  false,
+                    "deviceMayOverride":  false,
+                    "systemVoiceFallback":  false,
+                    "selectionRevision":  "076cfae4678ac16f0b06dbf9f82f8b16f7fb943fc9bec4a95d3c33e144c7079f"
+                },
+    "providerReady":  true
+}

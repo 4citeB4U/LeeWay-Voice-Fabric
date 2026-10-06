@@ -1,0 +1,65 @@
+{
+  "schemaVersion": "leeway.voice-authority-live.v1",
+  "status": "LIVE_SELECTION_AND_SYNTHESIS_VERIFIED_NOT_AUDIBILITY",
+  "fixtureProviders": false,
+  "checks": [
+    {
+      "name": "Actual carrier resolves Voice-owned binding",
+      "status": "PASS",
+      "binding": {
+        "schema": "leeway-agent-voice-binding/v1.1",
+        "agentId": "agent-lee",
+        "personaFamily": "AGENT_LEE_CONSTITUTIONAL",
+        "personaArchetypeId": "ELDER_MALE",
+        "voicePackageId": "kokoro-am_michael",
+        "authority": "LEEWAY_VOICE_FABRIC",
+        "provider": "kokoro",
+        "voiceId": "am_michael",
+        "speakerId": "kokoro-am_michael",
+        "selectionState": "TEMPORARY_VERIFIED_PROVIDER",
+        "selectedBy": "CREATOR_PENDING_FINAL_AUDITION",
+        "qualificationOnly": true,
+        "productionAdmitted": false,
+        "deviceMayOverride": false,
+        "systemVoiceFallback": false,
+        "selectionRevision": "076cfae4678ac16f0b06dbf9f82f8b16f7fb943fc9bec4a95d3c33e144c7079f"
+      }
+    },
+    {
+      "name": "Device-local selection write is blocked instead of becoming shared authority",
+      "status": "PASS",
+      "result": {
+        "error": "SHARED_VOICE_SELECTION_OWNER_TRANSPORT_NOT_BOUND",
+        "authority": "LEEWAY_VOICE_FABRIC",
+        "deviceLocalOverride": false
+      }
+    },
+    {
+      "name": "Actual worker uses only Voice-selected speaker; client override cannot select system TTS",
+      "status": "PASS",
+      "voicePackageId": "kokoro-am_michael",
+      "provider": "kokoro",
+      "voiceId": "am_michael",
+      "selectionRevision": "076cfae4678ac16f0b06dbf9f82f8b16f7fb943fc9bec4a95d3c33e144c7079f",
+      "textHash": "9cc296bd686beaf1d699e07b575b51d19f85e9ebcb359b43efa39664f38c5e4c",
+      "audioSha256": "b8ef328818c8c0c6c23421486b8cf386d8364bd1c7e18b00c6f3b3dcfda45ffd",
+      "audioBytes": 378044,
+      "sampleRate": 24000,
+      "peak16": 18087,
+      "elapsedMs": 6087.9012,
+      "qualificationOnly": true,
+      "state": "SYNTHESIZED_NOT_PLAYBACK_VERIFIED"
+    },
+    {
+      "name": "Owner selection unchanged by worker restart and test requests",
+      "status": "PASS",
+      "bindingRecordSha256": "002f87c59b562e2f3becfcc6c5435c1034c096937e9d0e3cf2d7f7b6df2eeeef"
+    }
+  ],
+  "error": null,
+  "phoneNativeExecution": false,
+  "crossDeviceSelectionSynchronization": false,
+  "fullGoldenRelease": false,
+  "formulaExecution": "NOT_EXECUTED",
+  "humanAudibilityConfirmed": false
+}

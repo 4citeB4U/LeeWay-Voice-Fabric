@@ -1,0 +1,13 @@
+﻿{
+    "schemaVersion":  "leeway.voice-playback-call.v1",
+    "status":  "NATIVE_PCM_PLAYBACK_CALL_RETURNED",
+    "voiceAuthority":  "LEEWAY_VOICE_FABRIC",
+    "voicePackageId":  "kokoro-am_michael",
+    "audioSha256":  "b8ef328818c8c0c6c23421486b8cf386d8364bd1c7e18b00c6f3b3dcfda45ffd",
+    "elapsedMs":  7993,
+    "nativeTtsUsed":  false,
+    "voiceSelectionChanged":  false,
+    "volumeChanged":  false,
+    "humanAudibilityConfirmed":  false,
+    "scope":  "OUTPUT_API_COMPLETION_NOT_HUMAN_HEARING_OR_ACOUSTIC_IDENTITY_QUALIFICATION"
+}

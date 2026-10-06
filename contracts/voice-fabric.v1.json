@@ -1,91 +1,123 @@
-{
-  "schema": "leeway-voice-fabric/v2.1",
-  "authority": "4citeB4U/LeeWay-Voice-Fabric",
-  "purpose": "canonical multi-agent voice package registry and persona-aware speech service",
-  "defaultVoice": "agent-lee-voice-one",
-  "transport": [
-    "iframe-postMessage",
-    "direct-browser",
-    "runtime-fabric-adapter"
-  ],
-  "voicePackage": {
-    "required": [
-      "id",
-      "name",
-      "owner",
-      "provider",
-      "pace",
-      "exaggeration"
-    ],
-    "reference": "versioned URL or Voice Fabric origin IndexedDB blob",
-    "bindingRule": "Every LeeWay agent or worker must carry an explicit personaFamily, personaArchetypeId and voicePackageId. Persona is resolved by Runtime Fabric; Voice Fabric renders verified acoustic output."
-  },
-  "commands": {
-    "ping": {},
-    "listVoices": {},
-    "getVoice": {
-      "voicePackageId": "string"
-    },
-    "selectVoice": {
-      "voicePackageId": "string"
-    },
-    "prepare": {
-      "provider": "optional"
-    },
-    "configure": {
-      "pace": "number",
-      "exaggeration": "number",
-      "provider": "string"
-    },
-    "setReference": {
-      "audio": "ArrayBuffer"
-    },
-    "speak": {
-      "text": "string"
-    },
-    "streamStart": {
-      "streamId": "string"
-    },
-    "streamChunk": {
-      "streamId": "string",
-      "text": "string"
-    },
-    "streamEnd": {
-      "streamId": "string"
-    },
-    "stop": {},
-    "dispose": {},
-    "metrics": {}
-  },
-  "invariants": [
-    "voice package identity independent of reasoning model",
-    "one audible lane",
-    "stop voice without canceling upstream reasoning",
-    "bounded queue",
-    "ordered text",
-    "stale audio suppressed after interruption",
-    "voice ownership is explicit per agent or worker",
-    "persona family is resolved before speech dispatch",
-    "persona archetype metadata survives reasoning-to-voice handoff",
-    "acoustic voice package does not become persona authority",
-    "persona adapter/model does not become voice package authority",
-    "no demographic stereotype may be treated as factual behavior law"
-  ],
-  "personaBinding": {
-    "authority": "4citeB4U/Leeway-Runtime-Fabric",
-    "family": "AGENT_LEE_CONSTITUTIONAL",
-    "requiredFields": [
-      "agentId",
-      "personaFamily",
-      "personaArchetypeId",
-      "voicePackageId"
-    ],
-    "archetypes": [
-      "ELDER_MALE",
-      "ELDER_FEMALE",
-      "YOUNG_MALE",
-      "YOUNG_FEMALE"
-    ],
-    "rule": "Persona controls linguistic delivery and pragmatic register. Voice package controls acoustic speaker identity. Neither may invent the other's state."
-  }
+﻿{
+    "schema":  "leeway-voice-fabric/v2.1",
+    "authority":  "4citeB4U/LeeWay-Voice-Fabric",
+    "purpose":  "canonical multi-agent voice package registry and persona-aware speech service",
+    "defaultVoice":  "agent-lee-voice-one",
+    "transport":  [
+                      "iframe-postMessage",
+                      "direct-browser",
+                      "runtime-fabric-adapter"
+                  ],
+    "voicePackage":  {
+                         "required":  [
+                                          "id",
+                                          "name",
+                                          "owner",
+                                          "provider",
+                                          "pace",
+                                          "exaggeration"
+                                      ],
+                         "reference":  "versioned URL or Voice Fabric origin IndexedDB blob",
+                         "bindingRule":  "Every LeeWay agent or worker must carry an explicit personaFamily, personaArchetypeId and voicePackageId. Persona is resolved by Runtime Fabric; Voice Fabric renders verified acoustic output."
+                     },
+    "commands":  {
+                     "ping":  {
+
+                              },
+                     "listVoices":  {
+
+                                    },
+                     "getVoice":  {
+                                      "voicePackageId":  "string"
+                                  },
+                     "selectVoice":  {
+                                         "voicePackageId":  "string"
+                                     },
+                     "prepare":  {
+                                     "provider":  "optional"
+                                 },
+                     "configure":  {
+                                       "pace":  "number",
+                                       "exaggeration":  "number",
+                                       "provider":  "string"
+                                   },
+                     "setReference":  {
+                                          "audio":  "ArrayBuffer"
+                                      },
+                     "speak":  {
+                                   "text":  "string"
+                               },
+                     "streamStart":  {
+                                         "streamId":  "string"
+                                     },
+                     "streamChunk":  {
+                                         "streamId":  "string",
+                                         "text":  "string"
+                                     },
+                     "streamEnd":  {
+                                       "streamId":  "string"
+                                   },
+                     "stop":  {
+
+                              },
+                     "dispose":  {
+
+                                 },
+                     "metrics":  {
+
+                                 }
+                 },
+    "invariants":  [
+                       "voice package identity independent of reasoning model",
+                       "one audible lane",
+                       "stop voice without canceling upstream reasoning",
+                       "bounded queue",
+                       "ordered text",
+                       "stale audio suppressed after interruption",
+                       "voice ownership is explicit per agent or worker",
+                       "persona family is resolved before speech dispatch",
+                       "persona archetype metadata survives reasoning-to-voice handoff",
+                       "acoustic voice package does not become persona authority",
+                       "persona adapter/model does not become voice package authority",
+                       "no demographic stereotype may be treated as factual behavior law"
+                   ],
+    "personaBinding":  {
+                           "authority":  "4citeB4U/Leeway-Runtime-Fabric",
+                           "family":  "AGENT_LEE_CONSTITUTIONAL",
+                           "requiredFields":  [
+                                                  "agentId",
+                                                  "personaFamily",
+                                                  "personaArchetypeId",
+                                                  "voicePackageId"
+                                              ],
+                           "archetypes":  [
+                                              "ELDER_MALE",
+                                              "ELDER_FEMALE",
+                                              "YOUNG_MALE",
+                                              "YOUNG_FEMALE"
+                                          ],
+                           "rule":  "Persona controls linguistic delivery and pragmatic register. Voice package controls acoustic speaker identity. Neither may invent the other\u0027s state."
+                       },
+    "deviceAuthorityBoundary":  {
+                                    "owner":  "LEEWAY_VOICE_FABRIC",
+                                    "personaSource":  "AGENT_LEE_RUNTIME_IDENTITY_AUTHORITY",
+                                    "deviceResponsibilities":  [
+                                                                   "authorized microphone input",
+                                                                   "audio sample playback",
+                                                                   "hardware/permission/error observations"
+                                                               ],
+                                    "deviceMustNot":  [
+                                                          "choose or replace Agent Lee voice",
+                                                          "use a native TTS fallback for Agent Lee",
+                                                          "rewrite prepared persona text",
+                                                          "promote worker availability to voice authority",
+                                                          "maintain an independent authoritative voice selection"
+                                                      ],
+                                    "selectionScope":  "one owner-scoped agent binding projected to authorized devices",
+                                    "servicePlacement":  "qualified native worker may be local or authorized remote; no mandatory PC host",
+                                    "failureRule":  "preserve identity; recover the same package or report unavailable, never substitute a speaker",
+                                    "genericCatalogDefaults":  "not authority for an agent binding",
+                                    "hardwareLimit":  "owner permissions, audio focus, mute/volume and physical availability remain real constraints",
+                                    "currentCrossDeviceSelectionTransport":  "NOT_YET_QUALIFIED"
+                                }
 }
