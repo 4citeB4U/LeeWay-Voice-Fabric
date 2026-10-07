@@ -132,7 +132,7 @@ function startConsole() {
     $('applyAgentLeeVoice').disabled = !ownerSession || ownerPending || !admitted || draft.busy || draft.preparing;
     $('loadSharedVoice').disabled = !ownerSession || ownerPending || draft.busy;
     $('sharedCapabilities').textContent = ownerSession
-      ? (!admitted ? 'This profile is audition-only until admitted to the shared catalog. ' : '') + 'Apply includes acoustic tuning. Synthesis sampling and the local listening mix are not published. Runtime DSP consumption and device listening require separate verification.'
+      ? (!admitted ? 'This profile is audition-only until admitted to the shared catalog. ' : '') + 'Apply includes acoustic tuning. Synthesis sampling and the local listening mix are not published. Runtime processing not observed here.'
       : 'An existing owner binding and an authorized local Studio session are required to publish.';
   }
 
@@ -141,7 +141,7 @@ function startConsole() {
     $('sharedSpeaker').textContent = state.binding?.voicePackageId || 'Unverified';
     $('sharedRevision').textContent = state.recordRevision?.slice(0, 16) || '—';
     $('sharedRevision').title = state.recordRevision || '';
-    $('sharedDelivery').textContent = state.deliveryState === 'DEVICE_ACKNOWLEDGEMENTS_NOT_YET_RECORDED' ? 'Awaiting device acknowledgement' : state.deliveryState || 'Unverified';
+    $('sharedDelivery').textContent = 'Playback not observed here';
   }
   async function ownerApi(path, options = {}) {
     const timeout = new AbortController(), timer = setTimeout(() => timeout.abort(), 15000);
@@ -197,7 +197,7 @@ function startConsole() {
         throw new Error('Publication occurred, but its revision changed before readback. Refresh to inspect the current shared selection.');
       }
       ownerSession = readback; sharedSignature = readback.recordRevision; showOwner(readback);
-      sharedMessage = 'Published and read back from the Voice Fabric binding. Paired-device delivery and listening are awaiting acknowledgement.';
+      sharedMessage = 'Published and read back from the Voice Fabric binding. Playback not observed here.';
       $('sharedVoiceState').textContent = sharedMessage;
       record('shared-publication-readback', {revision: result.recordRevision, voicePackageId: payload.voicePackageId, publicationReceipt: result.publicationReceipt});
     } catch (error) {
