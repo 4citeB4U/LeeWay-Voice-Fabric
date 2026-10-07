@@ -23,9 +23,13 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: python -m unittest discover -s tests -p 'test_*.py'
-      - name: Install Chromium for the Studio behavior gate
+      - name: Install Chromium for the Studio browser gates
         run: npx playwright install --with-deps chromium --only-shell
       - name: Verify real browser audio and Studio controls
-        run: |
-          npm run test:browser
-          npm run test:graphics
+        run: npm run test:browser
+      - name: Verify Studio graphics lifecycle
+        run: npm run test:graphics
+      - name: Verify Studio publication through the actual Python publisher
+        run: npm run test:owner
+      - name: Verify cancellation races and provider sample rates
+        run: npm run test:races

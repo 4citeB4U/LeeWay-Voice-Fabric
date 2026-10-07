@@ -63,9 +63,25 @@ npm test
 python -m unittest discover -s tests -p 'test_*.py'
 npx playwright install --with-deps chromium --only-shell
 npm run test:browser
+npm run test:graphics
+npm run test:owner
+npm run test:races
 ```
 
-The browser gate uses the repository's real WAV assets and an independent audio analyser to verify nonzero browser output, muting, interruption and source reuse. Controlled HTTP fixtures test streaming/cancellation without claiming model synthesis or physical speaker audibility. The publisher tests use real temporary files and HTTP sessions to test revision conflicts, readback, dry-run behavior, bounds and private-file protection; provider readiness is controlled by the test.
+The pull-request workflow runs all four browser gates after the JavaScript and Python tests. They use the pinned Playwright dependency and one Chromium headless-shell installation.
+
+| Command | Verified behavior | Evidence boundary |
+| --- | --- | --- |
+| `npm run test:browser` | Repository WAV playback through an independent audio analyser, nonzero output, muting, interruption, source reuse, desktop/mobile controls and sequential clause playback | Streaming uses controlled HTTP responses containing repository audio; no model execution |
+| `npm run test:graphics` | Actual Three.js rendering and audio response, renderer lifecycle, context recovery and narrow viewport | Browser graphics and audio-graph behavior |
+| `npm run test:owner` | Actual frontend session and Apply flow through the Python publisher, temporary binding mutation, exact revision readback, draft isolation and two-tab conflicts | A newly created temporary authority record and catalog; provider readiness is stubbed and synthesis is forbidden |
+| `npm run test:races` | Stop during replay or Speak device startup, cancellation of pending monitor activation, reference/stream handoff and preservation of a provider's 48 kHz source rate with a 24 kHz monitor | Actual browser code with an explicitly held AudioContext resume boundary and deterministic PCM HTTP fixtures |
+
+The owner browser gate verifies that Apply stays disabled until a session admits the selected profile. Voice selection and all dials remain a draft until Apply. Its real publication request contains only the selected voice, revision, approval and admitted acoustic settings; synthesis controls and listening mix are excluded. The publisher must preserve persona, permissions, other employees and unrelated data, write an exact backup, produce a receipt and return the same revision on a separate readback. Two real tabs exercise an intentionally stale request: the server returns HTTP 409, preserves the newer file and triggers no automatic retry. Explicit refresh stops obsolete speech while retaining the audition draft, and loading shared settings does not republish. An unadmitted profile remains available for audition and export. All publication writes stay inside the test's temporary directory, which is removed afterward; no live employee binding is changed.
+
+The race gate holds the real AudioContext resume boundary to verify that Stop prevents late playback, unmuting and synthesis ingress. An independent monitor cut rejects pending activation. Reference playback must end an active stream without overlapping output, leaving the controller busy or requesting its next clause. Its hosted-provider HTTP fixture returns 48 kHz PCM, and the rendered WAV must retain that rate even when the monitor runs at 24 kHz. No hosted account or provider model is used.
+
+The Python publisher tests additionally cover dry-run behavior, tuning bounds and private-file protection using temporary files and controlled readiness. None of these gates establishes physical microphone or speaker qualification, human hearing, live provider execution, live device acknowledgements, Formula execution or a Learning Ledger update. Optional `STUDIO_OWNER_BROWSER_ARTIFACTS` and `STUDIO_RACE_ARTIFACTS` directories retain the respective gates' JSON evidence for inspection.
 
 A live deployment additionally needs the real provider path, shared-binding readback and actual device playback. Phone applications that bundle Studio assets require a new asset integrity manifest and package; a Pages update cannot change those installed bytes.
 
