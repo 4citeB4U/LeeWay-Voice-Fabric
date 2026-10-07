@@ -8,7 +8,9 @@ const must=(ok,msg)=>{if(!ok){failures.push(msg);console.error('FAIL',msg)}else 
 
 try{
   await page.goto(BASE,{waitUntil:'domcontentloaded',timeout:120000});
-  must((await page.title())==='LeeWay Voice Studio','root URL opens full studio');
+  must((await page.title())==='LeeWay Voice Fabric · Spatial Audio Studio','root URL opens the spatial studio');
+  await page.waitForFunction(()=>!!globalThis.LeeWayStudioControls&&!!globalThis.LeeWayStudioMonitor,null,{timeout:30000});
+  must(await page.locator('#speakStream').isVisible(),'spatial studio transport is visible');
   await page.waitForSelector('#voiceList button',{timeout:30000});
   const labels=await page.locator('#voiceList button').allTextContents();
   must(labels.some(x=>/Agent Lee.*Voice One/.test(x)),'Agent Lee Voice One rendered');

@@ -21,8 +21,8 @@ jobs:
       - name: Wait for Pages propagation
         run: sleep 30
       - name: Install browser test dependency
-        run: npm install --no-save playwright@1.55.0
+        run: npm ci --ignore-scripts
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium --only-shell
       - name: Verify live production catalog and SDK selection
         run: node tests/live-browser-gate.mjs

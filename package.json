@@ -4,6 +4,14 @@
   "private": true,
   "scripts": {
     "test": "node --test tests/*.test.cjs",
-    "check": "node --check src/voice-sdk.js && node --check src/bridge-runtime.js && node --check src/browser-voice.js && node --check src/speech-pipeline.js && node --check src/chatterbox.worker.js && node --check src/lab.js && node --check src/studio.js && node --check src/studio-audio.js && node --check src/studio-render.worker.js && node --check src/voice-registry.js && node --check src/voice-model-cache.js && node --check src/voice-cpu-sessions.js && node --check src/native-decoder-client.js"
+    "check": "node --check src/voice-sdk.js && node --check src/bridge-runtime.js && node --check src/browser-voice.js && node --check src/speech-pipeline.js && node --check src/chatterbox.worker.js && node --check src/lab.js && node --check src/studio.js && node --check src/studio-audio.js && node --check src/studio-render.worker.js && node --check src/voice-registry.js && node --check src/voice-model-cache.js && node --check src/voice-cpu-sessions.js && node --check src/native-decoder-client.js && node --check src/studio-console.js && node --check src/studio-monitor.js && node --check src/studio-visualizer.js",
+    "test:browser": "node tests/studio-browser-gate.mjs",
+    "test:graphics": "node tests/studio-visualizer-browser.mjs",
+    "test:owner": "node tests/studio-owner-browser-gate.mjs",
+    "test:races": "node tests/studio-races-browser.mjs",
+    "test:prepare": "node tests/studio-prepare-browser.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
   }
 }
