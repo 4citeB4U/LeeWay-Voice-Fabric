@@ -1,6 +1,6 @@
 # LeeWay Voice Fabric
 
-[Open the live Voice Studio](https://4citeb4u.github.io/LeeWay-Voice-Fabric/) � the homepage includes all profiles and the tuning console.
+[Open the live Voice Studio](https://4citeb4u.github.io/LeeWay-Voice-Fabric/) — the homepage includes all profiles and the tuning console.
 
 **Canonical purpose:** one governed voice boundary for the LeeWay ecosystem.
 
@@ -19,15 +19,20 @@ LeeWay Voice Fabric separates **what produces words** from **how Agent Lee speak
 
 ## Voice Studio
 
-Open `studio.html` for 28 distinct English Kokoro speakers (13 male,15 female), Agent Lee's reference clone, optional Resemble account discovery, rotary acoustic tuning, portable profile import/export and rendered WAV download. Start `python adapters/start-studio.py --setup` (Python 3.10+ and Node.js), then open `http://127.0.0.1:8877/studio.html`. Subsequent launches omit `--setup`. See [local runtime setup and provider boundaries](docs/local-studio-runtime.md) and [the studio integration guide](docs/voice-studio.md). A static server supports the optional Chatterbox browser engine; local Kokoro/XTTS and hosted Resemble require their configured adapters. The browser SDK's streaming contract and the studio's batch synthesis are separate implemented paths.
+Open `studio.html` for the Creator's **3D Spatial Audio Studio**: an audio-reactive orb, independent microphone and voice spectra, actual listening gain/reverb/pan, runtime/device controls, the complete voice library, acoustic and synthesis racks, portable packages and tuned WAV export. Speak / Stream plays bounded synthesized clauses as they become ready; Interrupt invalidates pending audio and stops the listening mix.
+
+The existing catalog includes 28 distinct English Kokoro speakers (13 male, 15 female), Agent Lee's reference clone and optional hosted account voices. Model preparation and hosted calls remain explicit actions. The shared Agent Lee panel publishes admitted speakers and acoustic tuning through the existing employee binding with owner session/CSRF protection, revision checks and readback. Local audition settings do not silently change the shared voice.
+
+Start `python adapters/start-studio.py --setup` (Python 3.10+ and Node.js), then open `http://127.0.0.1:8877/studio.html`. Subsequent launches omit `--setup`. See the [spatial Studio control map and verification scope](docs/spatial-voice-studio.md), [shared publication contract](docs/shared-voice-publication.md), [local runtime setup](docs/local-studio-runtime.md) and [existing tuning guide](docs/voice-studio.md). Static hosting supports bundled previews and the optional browser engine; shared publication and local engines require their configured existing runtime. Installed phone bundles require their own asset/package update.
+
 
 ## Public browser surface
 
 GitHub Pages hosts:
-- `index.html` — voice lab: type, listen, change delivery/pace, and load an owned reference clip.
-- `bridge.html` — hidden same-origin runtime used by the SDK.
-- `src/voice-sdk.js` — tiny client used by any web application.
-- `src/bridge-runtime.js` — message boundary and voice-session owner.
+- `index.html` — the same full spatial Studio as `studio.html`.
+- `bridge.html` â€” hidden same-origin runtime used by the SDK.
+- `src/voice-sdk.js` â€” tiny client used by any web application.
+- `src/bridge-runtime.js` â€” message boundary and voice-session owner.
 
 The iframe bridge keeps the heavy browser voice provider on one GitHub Pages origin, so compatible browsers can reuse that origin's cached model assets instead of each LeeWay application owning its own voice stack.
 
@@ -68,9 +73,9 @@ Voice telemetry may be measured here, but canonical Formula evaluation remains e
 ## Evidence carried forward
 
 Source recovery used:
-- `4citeB4U/RapidWebDev` — Voice One browser Chatterbox, speech stream, interruption and qualification.
-- `4citeB4U/LeeWay-Agent-Skills` — Codex read-aloud stop/mute/resume contract.
-- `4citeB4U/Leeway-formula-live` — centralized Formula consumer rule.
+- `4citeB4U/RapidWebDev` â€” Voice One browser Chatterbox, speech stream, interruption and qualification.
+- `4citeB4U/LeeWay-Agent-Skills` â€” Codex read-aloud stop/mute/resume contract.
+- `4citeB4U/Leeway-formula-live` â€” centralized Formula consumer rule.
 
 This repository is a consolidation boundary. Existing applications remain unchanged until adapters are individually migrated and verified.
 
