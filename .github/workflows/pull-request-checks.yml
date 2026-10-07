@@ -23,6 +23,17 @@ jobs:
       - run: npm run check
       - run: npm test
       - run: python -m unittest discover -s tests -p 'test_*.py'
+      - name: Check isolated Windows qualification runner boundaries
+        run: |
+          node --check tests/studio-live-windows-gate.mjs
+          node tests/studio-live-windows-gate.mjs --self-test
+      - name: Parse the saved Windows qualification script
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path scripts/Qualify-VoiceStudioCandidate.ps1), [ref]$tokens, [ref]$parseErrors)
+          if (@($parseErrors).Count) { $parseErrors | Format-List; exit 1 }
       - name: Install Chromium for the Studio browser gates
         run: npx playwright install --with-deps chromium --only-shell
       - name: Verify real browser audio and Studio controls
@@ -33,3 +44,5 @@ jobs:
         run: npm run test:owner
       - name: Verify cancellation races and provider sample rates
         run: npm run test:races
+      - name: Verify browser preparation remains cancellable after switching
+        run: npm run test:prepare

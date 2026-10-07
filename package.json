@@ -8,7 +8,8 @@
     "test:browser": "node tests/studio-browser-gate.mjs",
     "test:graphics": "node tests/studio-visualizer-browser.mjs",
     "test:owner": "node tests/studio-owner-browser-gate.mjs",
-    "test:races": "node tests/studio-races-browser.mjs"
+    "test:races": "node tests/studio-races-browser.mjs",
+    "test:prepare": "node tests/studio-prepare-browser.mjs"
   },
   "devDependencies": {
     "playwright": "1.62.1"

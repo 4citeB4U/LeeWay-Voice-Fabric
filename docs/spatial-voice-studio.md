@@ -66,9 +66,10 @@ npm run test:browser
 npm run test:graphics
 npm run test:owner
 npm run test:races
+npm run test:prepare
 ```
 
-The pull-request workflow runs all four browser gates after the JavaScript and Python tests. They use the pinned Playwright dependency and one Chromium headless-shell installation.
+The pull-request workflow runs all five browser gates after the JavaScript and Python tests. They use the pinned Playwright dependency and one Chromium headless-shell installation.
 
 | Command | Verified behavior | Evidence boundary |
 | --- | --- | --- |
@@ -76,6 +77,7 @@ The pull-request workflow runs all four browser gates after the JavaScript and P
 | `npm run test:graphics` | Actual Three.js rendering and audio response, renderer lifecycle, context recovery and narrow viewport | Browser graphics and audio-graph behavior |
 | `npm run test:owner` | Actual frontend session and Apply flow through the Python publisher, temporary binding mutation, exact revision readback, draft isolation and two-tab conflicts | A newly created temporary authority record and catalog; provider readiness is stubbed and synthesis is forbidden |
 | `npm run test:races` | Stop during replay or Speak device startup, cancellation of pending monitor activation, reference/stream handoff and preservation of a provider's 48 kHz source rate with a 24 kHz monitor | Actual browser code with an explicitly held AudioContext resume boundary and deterministic PCM HTTP fixtures |
+| `npm run test:prepare` | Cancel remains visible and stops pending browser preparation after runtime or profile switching on both entry pages | Actual browser load/cancel lifecycle held at the worker-request boundary; no model download |
 
 The owner browser gate verifies that Apply stays disabled until a session admits the selected profile. Voice selection and all dials remain a draft until Apply. Its real publication request contains only the selected voice, revision, approval and admitted acoustic settings; synthesis controls and listening mix are excluded. The publisher must preserve persona, permissions, other employees and unrelated data, write an exact backup, produce a receipt and return the same revision on a separate readback. Two real tabs exercise an intentionally stale request: the server returns HTTP 409, preserves the newer file and triggers no automatic retry. Explicit refresh stops obsolete speech while retaining the audition draft, and loading shared settings does not republish. An unadmitted profile remains available for audition and export. All publication writes stay inside the test's temporary directory, which is removed afterward; no live employee binding is changed.
 
@@ -84,6 +86,12 @@ The race gate holds the real AudioContext resume boundary to verify that Stop pr
 The Python publisher tests additionally cover dry-run behavior, tuning bounds and private-file protection using temporary files and controlled readiness. None of these gates establishes physical microphone or speaker qualification, human hearing, live provider execution, live device acknowledgements, Formula execution or a Learning Ledger update. Optional `STUDIO_OWNER_BROWSER_ARTIFACTS` and `STUDIO_RACE_ARTIFACTS` directories retain the respective gates' JSON evidence for inspection.
 
 A live deployment additionally needs the real provider path, shared-binding readback and actual device playback. Phone applications that bundle Studio assets require a new asset integrity manifest and package; a Pages update cannot change those installed bytes.
+
+### Isolated Windows qualification
+
+`scripts/Qualify-VoiceStudioCandidate.ps1` accepts the reviewed candidate commit and tree, the expected script/runner SHA-256 values, and explicit paths to the existing live authority, artifact directory, Chrome and Puppeteer. It parses and hashes the saved script, verifies the canonical source and the existing Studio/Kokoro launcher relationship, and starts a temporary loopback Studio from an exact detached checkout. It reuses the existing Kokoro process and disables clone-container startup. `tests/studio-live-windows-gate.mjs` makes one reviewed real synthesis request through the UI, verifies WAV processing and the independent output graph, tests Interrupt during active playback, and exercises the real owner publisher in dry-run mode only.
+
+The qualification retains an exact twelve-file activation manifest with target preimage hashes and verified backups after a pass. It performs no installed activation or live binding publication. Final source/binding readback, owned-process cleanup and script rehash must all pass before that manifest becomes `READY_FOR_APPROVAL`. Applying it requires recorded human authorization and a coordinated lifecycle for the existing launcher and both children; stopping only the Studio child would also terminate Kokoro. Headless graph measurements do not establish physical speaker audibility or phone qualification.
 
 ## Rollback
 
