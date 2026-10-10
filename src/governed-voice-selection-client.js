@@ -26,12 +26,12 @@ export class GovernedVoiceSelectionClient {
     if(before.voicePackageId===voicePackageId)return {status:'UNCHANGED',binding:before};
     // Only the existing authority may decide and commit. A local UI cannot mutate selection.
     const response=await this.requestSelection({voicePackageId,expectedSelectionRevision:before.selectionRevision,approvalId});
-    if(response?.status!=='COMMITTED'||response?.authority!=='LEEWAY_VOICE_FABRIC')throw Error('VOICE_SELECTION_NOT_COMMITTED_BY_OWNER');
+    if(response?.status!=='COMMITTED'||response?.authority!=='LEEWAY_VOICE_FABRIC'||!SHA.test(response?.selectionRevision??''))throw Error('VOICE_SELECTION_NOT_COMMITTED_BY_OWNER');
     const after=await this.binding();
     if(after.voicePackageId!==voicePackageId||after.selectionRevision===before.selectionRevision||
        after.personaFamily!==before.personaFamily||
        (before.agentId&&after.agentId!==before.agentId)||
-       (response.selectionRevision&&response.selectionRevision!==after.selectionRevision))throw Error('VOICE_OWNER_READBACK_MISMATCH');
+       response.selectionRevision!==after.selectionRevision)throw Error('VOICE_OWNER_READBACK_MISMATCH');
     return {status:'COMMITTED',before,after};
     }finally{this.pending=false;}
   }
