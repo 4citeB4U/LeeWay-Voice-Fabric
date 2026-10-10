@@ -52,7 +52,7 @@ test('persona change and mismatched committed revision fail closed',async()=>{
 test('concurrent selection requests are serialized by fail-closed guard',async()=>{
  const {GovernedVoiceSelectionClient:C}=await load();
  let b=initial(),release;const pause=new Promise(r=>release=r);let calls=0;
- const c=new C({readBinding:async()=>b,requestSelection:async({voicePackageId})=>{calls++;await pause;b={...b,voicePackageId,selectionRevision:rev('b')};return {status:'COMMITTED',authority:'LEEWAY_VOICE_FABRIC'};}});
+ const c=new C({readBinding:async()=>b,requestSelection:async({voicePackageId})=>{calls++;await pause;b={...b,voicePackageId,selectionRevision:rev('b')};return {status:'COMMITTED',authority:'LEEWAY_VOICE_FABRIC',selectionRevision:rev('b')};}});
  const first=c.select({voicePackageId:'voice-two',approvalId:'yes'});
  await assert.rejects(()=>c.select({voicePackageId:'voice-three',approvalId:'yes'}),/ALREADY_IN_PROGRESS/);
  release();await first;assert.equal(calls,1);
@@ -60,7 +60,17 @@ test('concurrent selection requests are serialized by fail-closed guard',async()
 test('denied selection unlocks client for authorized retry',async()=>{
  const {GovernedVoiceSelectionClient:C}=await load();
  let b=initial(),calls=0;
- const c=new C({readBinding:async()=>b,requestSelection:async({voicePackageId})=>{if(++calls===1)throw Error('OWNER_DENIED');b={...b,voicePackageId,selectionRevision:rev('b')};return {status:'COMMITTED',authority:'LEEWAY_VOICE_FABRIC'};}});
+ const c=new C({readBinding:async()=>b,requestSelection:async({voicePackageId})=>{if(++calls===1)throw Error('OWNER_DENIED');b={...b,voicePackageId,selectionRevision:rev('b')};return {status:'COMMITTED',authority:'LEEWAY_VOICE_FABRIC',selectionRevision:rev('b')};}});
  await assert.rejects(()=>c.select({voicePackageId:'voice-two',approvalId:'yes'}),/OWNER_DENIED/);
  assert.equal((await c.select({voicePackageId:'voice-two',approvalId:'yes'})).status,'COMMITTED');
+});
+
+test('owner must return its committed selection revision',async()=>{
+ const {GovernedVoiceSelectionClient:C}=await load();
+ let b=initial();
+ const c=new C({readBinding:async()=>b,requestSelection:async({voicePackageId})=>{
+   b={...b,voicePackageId,selectionRevision:rev('b')};
+   return {status:'COMMITTED',authority:'LEEWAY_VOICE_FABRIC'};
+ }});
+ await assert.rejects(()=>c.select({voicePackageId:'voice-two',approvalId:'approved'}),/NOT_COMMITTED_BY_OWNER/);
 });
