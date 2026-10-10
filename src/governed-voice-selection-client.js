@@ -25,9 +25,12 @@ export class GovernedVoiceSelectionClient {
     const before=await this.binding();
     if(before.voicePackageId===voicePackageId)return {status:'UNCHANGED',binding:before};
     // Only the existing authority may decide and commit. A local UI cannot mutate selection.
-    const response=await this.requestSelection({voicePackageId,expectedSelectionRevision:before.selectionRevision,approvalId});
+    // Record CAS and resolved voice identity have distinct revision domains.
+    if(before.recordRevision!==undefined&&!SHA.test(before.recordRevision))throw Error('VOICE_RECORD_REVISION_INVALID');
+    const response=await this.requestSelection({voicePackageId,expectedSelectionRevision:before.selectionRevision,...(before.recordRevision?{expectedRecordRevision:before.recordRevision}:{}),approvalId});
     if(response?.status!=='COMMITTED'||response?.authority!=='LEEWAY_VOICE_FABRIC'||!SHA.test(response?.selectionRevision??''))throw Error('VOICE_SELECTION_NOT_COMMITTED_BY_OWNER');
     const after=await this.binding();
+    if(before.recordRevision&&(!SHA.test(after.recordRevision??'')||after.recordRevision===before.recordRevision||response.recordRevision!==after.recordRevision))throw Error('VOICE_OWNER_RECORD_READBACK_MISMATCH');
     if(after.voicePackageId!==voicePackageId||after.selectionRevision===before.selectionRevision||
        after.personaFamily!==before.personaFamily||
        (before.agentId&&after.agentId!==before.agentId)||
