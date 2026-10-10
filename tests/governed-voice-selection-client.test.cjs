@@ -74,3 +74,24 @@ test('owner must return its committed selection revision',async()=>{
  }});
  await assert.rejects(()=>c.select({voicePackageId:'voice-two',approvalId:'approved'}),/NOT_COMMITTED_BY_OWNER/);
 });
+
+test('record CAS and resolved voice revision are independently checked',async()=>{
+ const {GovernedVoiceSelectionClient:C}=await load();
+ let b={...initial(),recordRevision:rev('c')};
+ const c=new C({readBinding:async()=>({...b}),requestSelection:async(request)=>{
+   assert.equal(request.expectedRecordRevision,rev('c'));
+   assert.equal(request.expectedSelectionRevision,rev('a'));
+   b={...b,voicePackageId:'voice-two',selectionRevision:rev('b'),recordRevision:rev('d')};
+   return {status:'COMMITTED',authority:'LEEWAY_VOICE_FABRIC',selectionRevision:rev('b'),recordRevision:rev('d')};
+ }});
+ assert.equal((await c.select({voicePackageId:'voice-two',approvalId:'approved'})).status,'COMMITTED');
+});
+test('stale persisted record readback fails even with valid voice selection revision',async()=>{
+ const {GovernedVoiceSelectionClient:C}=await load();
+ let b={...initial(),recordRevision:rev('c')};
+ const c=new C({readBinding:async()=>({...b}),requestSelection:async()=>{
+   b={...b,voicePackageId:'voice-two',selectionRevision:rev('b')};
+   return {status:'COMMITTED',authority:'LEEWAY_VOICE_FABRIC',selectionRevision:rev('b'),recordRevision:rev('d')};
+ }});
+ await assert.rejects(()=>c.select({voicePackageId:'voice-two',approvalId:'approved'}),/VOICE_OWNER_RECORD_READBACK_MISMATCH/);
+});
