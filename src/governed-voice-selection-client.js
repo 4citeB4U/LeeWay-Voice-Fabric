@@ -6,7 +6,7 @@ const SHA=/^[a-f0-9]{64}$/;
 export class GovernedVoiceSelectionClient {
   constructor({readBinding,requestSelection}={}){
     if(typeof readBinding!=='function'||typeof requestSelection!=='function')throw Error('CANONICAL_VOICE_OWNER_TRANSPORT_REQUIRED');
-    this.readBinding=readBinding;this.requestSelection=requestSelection;
+    this.readBinding=readBinding;this.requestSelection=requestSelection;this.pending=false;
   }
   async binding(){
     const r=await this.readBinding();
@@ -19,6 +19,9 @@ export class GovernedVoiceSelectionClient {
   async select({voicePackageId,approvalId}={}){
     if(typeof voicePackageId!=='string'||!voicePackageId.trim()||voicePackageId.length>128)throw Error('VOICE_PACKAGE_ID_REQUIRED');
     if(typeof approvalId!=='string'||!approvalId.trim()||approvalId.length>256)throw Error('VOICE_APPROVAL_REQUIRED');
+    if(this.pending)throw Error('VOICE_SELECTION_ALREADY_IN_PROGRESS');
+    this.pending=true;
+    try{
     const before=await this.binding();
     if(before.voicePackageId===voicePackageId)return {status:'UNCHANGED',binding:before};
     // Only the existing authority may decide and commit. A local UI cannot mutate selection.
@@ -30,5 +33,6 @@ export class GovernedVoiceSelectionClient {
        (before.agentId&&after.agentId!==before.agentId)||
        (response.selectionRevision&&response.selectionRevision!==after.selectionRevision))throw Error('VOICE_OWNER_READBACK_MISMATCH');
     return {status:'COMMITTED',before,after};
+    }finally{this.pending=false;}
   }
 }
