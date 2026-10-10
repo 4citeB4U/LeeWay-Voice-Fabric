@@ -26,7 +26,7 @@ test('reject missing approval without owner call',async()=>{
 test('owner response without revision commit cannot pass',async()=>{
  const {GovernedVoiceSelectionClient:C}=await load();
  const c=new C({readBinding:async()=>initial(),requestSelection:async()=>({status:'COMMITTED',authority:'LEEWAY_VOICE_FABRIC'})});
- await assert.rejects(()=>c.select({voicePackageId:'kokoro-af_heart',approvalId:'approved'}),/READBACK_MISMATCH/);
+ await assert.rejects(()=>c.select({voicePackageId:'kokoro-af_heart',approvalId:'approved'}),/NOT_COMMITTED_BY_OWNER/);
 });
 test('canonical owner commit and independent revision readback pass',async()=>{
  const {GovernedVoiceSelectionClient:C}=await load();
