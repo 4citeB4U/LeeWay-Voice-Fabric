@@ -46,3 +46,5 @@ jobs:
         run: npm run test:races
       - name: Verify browser preparation remains cancellable after switching
         run: npm run test:prepare
+      - name: Verify device-aware voice (real Kokoro model, probe, failover)
+        run: npm run test:device

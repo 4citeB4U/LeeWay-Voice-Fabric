@@ -3,7 +3,8 @@
   "profileId":"agent-lee-active-voice-v1",
   "authority":"4citeB4U/LeeWay-Voice-Fabric",
   "agentIdentityAuthority":"agent-lee-entity-identity-authority",
-  "voicePackageId":"agent-lee-voice-one",
+  "voicePackageId":"kokoro-am_michael",
+  "optionalClonePackageId":"agent-lee-voice-one",
   "providerPolicy":"Voice Fabric package identity is authoritative; backend/provider is replaceable.",
   "offlinePolicy":{
     "useLastVerifiedSelection":true,

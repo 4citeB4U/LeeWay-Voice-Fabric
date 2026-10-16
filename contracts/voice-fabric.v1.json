@@ -1,8 +1,8 @@
 {
-  "schema": "leeway-voice-fabric/v2.1",
+  "schema": "leeway-voice-fabric/v2.2",
   "authority": "4citeB4U/LeeWay-Voice-Fabric",
   "purpose": "canonical multi-agent voice package registry and persona-aware speech service",
-  "defaultVoice": "agent-lee-voice-one",
+  "defaultVoice": "kokoro-am_michael",
   "transport": [
     "iframe-postMessage",
     "direct-browser",
@@ -55,7 +55,19 @@
     },
     "stop": {},
     "dispose": {},
-    "metrics": {}
+    "metrics": {},
+    "status": {},
+    "probeDevice": {},
+    "getDiagnostics": {
+      "bridgeUrl": "optional loopback http URL",
+      "bearerToken": "optional owner-issued token",
+      "useDeviceBridge": "optional boolean"
+    },
+    "selfTest": {
+      "audible": "optional boolean",
+      "bridgeUrl": "optional",
+      "bearerToken": "optional"
+    }
   },
   "invariants": [
     "voice package identity independent of reasoning model",
@@ -87,5 +99,17 @@
       "YOUNG_FEMALE"
     ],
     "rule": "Persona controls linguistic delivery and pragmatic register. Voice package controls acoustic speaker identity. Neither may invent the other's state."
-  }
+  },
+  "optionalVoices": [
+    "agent-lee-voice-one"
+  ],
+  "defaultPolicy": "Kokoro model voices run on any WebAssembly browser; the device speech voice is the last resort; the Chatterbox clone is optional and only runs when explicitly selected on a capable device. Any provider change is reported, never silent.",
+  "events": [
+    "voice.ready",
+    "voice.state",
+    "voice.rendered",
+    "voice.error",
+    "voice.fallback"
+  ],
+  "toolManifest": "contracts/voice-tools.v1.json"
 }

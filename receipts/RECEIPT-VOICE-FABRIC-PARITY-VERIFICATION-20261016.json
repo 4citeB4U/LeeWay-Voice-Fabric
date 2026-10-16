@@ -1,0 +1,81 @@
+{
+  "receiptId": "RECEIPT-VOICE-FABRIC-PARITY-VERIFICATION-20261016",
+  "authority": "4citeB4U/LeeWay-Voice-Fabric",
+  "timestamp": "2026-10-16T22:20:00Z",
+  "verifiedBy": "The Creator",
+  "ecosystem": "LeeWay Sovereign Agentic Ecosystem",
+  "targetAgent": "Agent Lee (Constitutional / Sovereign / Non-LLM Entity)",
+  "canonicalVoice": {
+    "primaryDefaultVoiceId": "kokoro-am_michael",
+    "primaryFemaleVoiceId": "kokoro-af_heart",
+    "optionalCloneVoiceId": "agent-lee-voice-one",
+    "fallbackProvider": "device-speech",
+    "engine": "Kokoro-82M ONNX (WASM/WebGPU) + Web Speech API Fallback",
+    "modelCatalogSize": 28,
+    "instantSwitchRule": "Modifying voicePackageId in agent-lee-active-voice.v1.json or via selectVoice instantly switches speech synthesis globally across all LLM inference streams and native devices without model re-download."
+  },
+  "verifiedHardwareParity": [
+    {
+      "hardware": "Lenovo Legion 5 16IAX10 Laptop",
+      "os": "Microsoft Windows 11 Home",
+      "maleTake": {
+        "voice": "kokoro-am_michael",
+        "cadence": "Hip Hop OG Poetic Secretary of State",
+        "file": "agent_lee_male_laptop.wav",
+        "peakAmplitude": 0.593,
+        "auditionStatus": "PASS_AUDIBLE"
+      },
+      "femaleTake": {
+        "voice": "kokoro-af_heart",
+        "cadence": "Hip Hop OG Poetic Secretary of State",
+        "file": "agent_lee_female_laptop.wav",
+        "peakAmplitude": 0.584,
+        "auditionStatus": "PASS_AUDIBLE"
+      }
+    },
+    {
+      "hardware": "Samsung Galaxy Z Fold 6 (SM-F956U)",
+      "os": "Android 14 / One UI 6",
+      "maleTake": {
+        "voice": "kokoro-am_michael",
+        "cadence": "Hip Hop OG Poetic Secretary of State",
+        "file": "agent_lee_male_phone.wav",
+        "pushLocation": "/sdcard/agent_lee_male_phone.wav",
+        "auditionStatus": "PASS_AUDIBLE"
+      },
+      "femaleTake": {
+        "voice": "kokoro-af_heart",
+        "cadence": "Hip Hop OG Poetic Secretary of State",
+        "file": "agent_lee_female_phone.wav",
+        "pushLocation": "/sdcard/agent_lee_female_phone.wav",
+        "auditionStatus": "PASS_AUDIBLE"
+      }
+    }
+  ],
+  "llmProviderAgnosticIntegration": {
+    "modelHubBinding": "LeeWay Universal Model Hub / LiteRT-LM Manifest",
+    "supportedInferenceStreams": [
+      "OpenAI Function Calling / ChatCompletions",
+      "Anthropic Claude Tool Use / Messages Stream",
+      "Google Gemini GenerateContentStream",
+      "Local LiteRT-LM / Ollama / ONNX Local Worker",
+      "Agent Lee Direct Autonomous Cognitive Loop"
+    ],
+    "boundaryLaw": "LLMs emit raw token streams. Voice Fabric chunks clauses, handles backpressure, binds acoustic identity, and streams audio. Stopping speech NEVER cancels LLM reasoning or Agent Lee cognitive state."
+  },
+  "pullRequests": [
+    {
+      "repo": "4citeB4U/LeeWay-Voice-Fabric",
+      "prNumber": 16,
+      "url": "https://github.com/4citeB4U/LeeWay-Voice-Fabric/pull/16",
+      "title": "Make Voice Fabric device-aware: Kokoro default, device-voice fallback, probe, diagnostics link, MCP tools"
+    },
+    {
+      "repo": "4citeB4U/LEEWAY-DEVICE-BRIDGE",
+      "prNumber": 36,
+      "url": "https://github.com/4citeB4U/LEEWAY-DEVICE-BRIDGE/pull/36",
+      "title": "Align VoiceRuntime with Kokoro default and add audio telemetry to Diagnostics"
+    }
+  ],
+  "status": "CANONICAL_ESTABLISHED_AND_VERIFIED"
+}

@@ -56,6 +56,12 @@ export class LeeWayVoiceClient {
   streamEnd(streamId){return this.call('streamEnd',{streamId});}
   stop(){return this.call('stop');}
   metrics(){return this.call('metrics');}
+  status(){return this.call('status');}
+  probeDevice(){return this.call('probeDevice');}
+  /** @param {{bridgeUrl?:string,bearerToken?:string,useDeviceBridge?:boolean}} [options] */
+  diagnostics(options={}){return this.call('getDiagnostics',options);}
+  /** Measured check of probe, diagnostics, provider preparation and synthesis. `audible` also plays a short phrase. */
+  selfTest(options={}){return this.call('selfTest',options);}
   async setReference(file){
     const buffer=await file.arrayBuffer();return this.call('setReference',{name:file.name,type:file.type,audio:buffer},[buffer]);
   }
