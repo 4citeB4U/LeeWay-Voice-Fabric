@@ -1,28 +1,48 @@
 {
-  "schema": "leeway-runtime-fabric-voice-adapter/v1",
+  "schema": "leeway-runtime-fabric-voice-adapter/v2",
   "capabilityId": "leeway.voice.speak",
   "serviceAuthority": "4citeB4U/LeeWay-Voice-Fabric",
+  "agentIdentityAuthority": "agent-lee-entity-identity-authority",
+  "agentLeeEntityRule": "Agent Lee is an autonomous sovereign entity, NOT an LLM. LLMs provide inference, reasoning, and token generation; Voice Fabric renders acoustic identity. Agent Lee's identity transcends any single model or host.",
   "requiredOperations": [
     "prepare",
     "speak",
     "streamStart",
     "streamChunk",
     "streamEnd",
-    "stop"
+    "stop",
+    "selectVoice",
+    "listVoices",
+    "probeDevice",
+    "getDiagnostics",
+    "selfTest"
   ],
+  "defaultVoicePackageId": "kokoro-am_michael",
+  "defaultFemaleVoicePackageId": "kokoro-af_heart",
+  "optionalCloneVoicePackageId": "agent-lee-voice-one",
+  "fallbackProvider": "device-speech",
+  "globalVoiceSwitchLaw": "Changing the active voice in profiles/agent-lee-active-voice.v1.json or via selectVoice instantly switches speech synthesis globally across all LLM inference streams and native devices without restarting or re-downloading.",
   "requestEnvelope": {
     "workId": "caller-owned stable work identity",
     "threadId": "optional conversation/thread identity",
-    "voiceId": "defaults to agent-lee-voice-one",
+    "voiceId": "defaults to active profile voice (kokoro-am_michael)",
     "priority": "integer",
-    "text": "complete text or streamed fragments"
+    "text": "complete text or streamed fragments",
+    "llmProvider": "optional string (e.g., openai, anthropic, gemini, litert, ollama)"
   },
   "cancellation": {
     "voiceStop": "invalidates speech epoch and queued audio",
-    "upstreamWork": "MUST NOT be canceled by voiceStop"
+    "upstreamWork": "MUST NOT be canceled by voiceStop; Agent Lee reasoning continues uninterrupted."
   },
-  "formula": {
-    "evaluation": "external-only",
-    "rule": "Do not invent Q69/F3/F4 states in this adapter. Route to centralized Formula authority only with authorized mapping/version."
+  "modelHubIntegration": {
+    "manifest": "docs/model-manifest.json",
+    "inferenceBridge": "Tokens from any Model Hub provider pipe directly into streamChunk(streamId, tokenText). The Voice Fabric chunker buffers clauses and guarantees low-latency zero-artifact delivery."
+  },
+  "platformSupport": {
+    "windows": "WASM/WebGPU via Chromium, Edge, or WebView2; fallback to Windows Speech API",
+    "macos": "WASM/WebGPU via Safari, Chrome, or WKWebView; fallback to macOS SpeechSynthesis",
+    "linux": "WASM/WebGPU via Chrome, Firefox; fallback to SpeechSynthesis / espeak",
+    "android": "WASM via Samsung Internet, Chrome, or Android WebView; fallback to Android TextToSpeech engine",
+    "ios": "WASM via Safari or WKWebView; fallback to iOS SpeechSynthesis"
   }
 }
