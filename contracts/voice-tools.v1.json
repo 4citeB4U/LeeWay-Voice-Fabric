@@ -1,0 +1,126 @@
+{
+  "schema": "leeway-voice-tools/v1",
+  "authority": "4citeB4U/LeeWay-Voice-Fabric",
+  "tools": [
+    {
+      "name": "voice_speak",
+      "description": "Speak text aloud with the active LeeWay voice. Prepares the best voice for this device automatically and fails over visibly if a provider breaks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 12000
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "voice_stop",
+      "description": "Stop speech immediately. Does not cancel upstream reasoning.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "voice_list_voices",
+      "description": "List the available voice packages (28 Kokoro model voices, device voice, optional clone).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "voice_select_voice",
+      "description": "Select a voice package by ID, for example \"kokoro-am_michael\".",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "voicePackageId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "voicePackageId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "voice_status",
+      "description": "Report the active provider, device, selected voice, the provider plan, any fallback in effect and the last error.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "voice_device_profile",
+      "description": "Probe this device (WebGPU, WebAssembly, memory, audio output, speech voices) and return the provider plan with reasons.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "voice_diagnostics",
+      "description": "Read device diagnostics: the native host snapshot and, when a loopback LeeWay Device Bridge URL and owner token are supplied, its health and passport.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "bridgeUrl": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "bearerToken": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "useDeviceBridge": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    },
+    {
+      "name": "voice_self_test",
+      "description": "Run a measured voice self-test (probe, diagnostics, prepare, synthesis). Set audible to also play a short phrase.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "audible": {
+            "type": "boolean"
+          },
+          "bridgeUrl": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "bearerToken": {
+            "type": "string",
+            "maxLength": 512
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  ]
+}
