@@ -126,6 +126,22 @@ def voice_metadata(item):
 
 
 class StudioHandler(SimpleHTTPRequestHandler):
+    def send_head(self):
+        # A persistent desktop WebView must fetch the current Studio controls.
+        path = unquote(urlsplit(self.path).path)
+        self._studio_control_response = path in ("/", "/index.html", "/studio.html") or (
+            path.startswith("/src/") and Path(path).suffix.lower() in (".js", ".mjs", ".css")
+        )
+        try:
+            return super().send_head()
+        finally:
+            self._studio_control_response = False
+
+    def end_headers(self):
+        if getattr(self, "_studio_control_response", False):
+            self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
     def log_message(self, *_args):
         # Paths/query strings and provider text must not become server logs.
         pass

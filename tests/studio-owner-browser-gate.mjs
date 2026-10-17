@@ -329,7 +329,7 @@ try {
   assert.equal(firstRequest.headers.contentType, 'application/json');
   assert.equal(firstRequest.headers.csrfPresent, true);
   assert.equal(firstRequest.headers.sameOrigin, true);
-  assert.match(await pageA.locator('#sharedDelivery').textContent(), /Awaiting device acknowledgement/);
+  assert.match(await pageA.locator('#sharedDelivery').textContent(), /Playback not observed here/);
   record('Actual Apply publishes only admitted acoustic fields, atomically backs up and reads back the exact revision');
   record('Publication preserves persona, permissions, other employees and unrelated authority data');
 
