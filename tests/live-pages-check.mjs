@@ -1,6 +1,6 @@
 const BASE=process.env.VOICE_FABRIC_URL||'https://4citeb4u.github.io/LeeWay-Voice-Fabric';
 const checks=[
-  ['/', ['LeeWay Voice Fabric · Spatial Audio Studio','Voice library','tuningDock','src/studio.js','src/studio-console.js','speakStream','id="duplexInline"','id="duplexInlineFrame"','src/studio-duplex-adapter.js','src/studio-duplex-workspace.css']],
+  ['/', ['LeeWay Voice Fabric · Spatial Audio Studio','Voice library','tuningDock','src/studio.js','src/studio-console.js','speakStream','id="duplexInline"','id="duplexInlineFrame"','src/studio-duplex-adapter.js','src/studio-duplex-workspace.css','src/studio-public-dictation.mjs']],
   ['/src/studio-console.js', ['StudioMonitor','createStudioVisualizer','/api/agent-lee/selection']],
   ['/src/studio-monitor.js', ['createAnalyser','createMediaElementSource']],
   ['/src/studio-visualizer.js', ['three.module.min.js','createStudioVisualizer']],
