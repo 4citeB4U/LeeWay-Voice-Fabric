@@ -190,13 +190,13 @@
           onState(`Preparing browser voice (${i+1}/${parts.length})...`);
           const result=await this.request('generate',{text:parts[i],exaggeration:this.exaggeration},progress=>{if(epoch===this.epoch&&progress.message)onState(progress.message)});
           if(epoch!==this.epoch||signal?.aborted)throw aborted();
-          onState('Speaking. The microphone can interrupt.');
-          await this.play(result,epoch);
+          onState('Audio synthesized; requesting browser playback.');
+          await this.play(result,epoch,onState);
         }
         if(epoch!==this.epoch)throw aborted();onState('Ready.');
       }finally{signal?.removeEventListener('abort',stop);}
     }
-    async play({audio,sampleRate},epoch){
+    async play({audio,sampleRate},epoch,onState=()=>{}){
       if(epoch!==this.epoch)throw aborted();
       const samples=new Float32Array(audio),wav=new ArrayBuffer(44+samples.length*2),view=new DataView(wav);
       const write=(offset,text)=>{for(let i=0;i<text.length;i++)view.setUint8(offset+i,text.charCodeAt(i))};
@@ -208,7 +208,11 @@
         const source={media,stop:()=>media.pause()};this.sources.add(source);
         let finished=false;
         const finish=error=>{if(finished)return;finished=true;media.onended=null;media.onerror=null;media.onplaying=null;media.pause();media.removeAttribute('src');media.load();URL.revokeObjectURL(url);this.sources.delete(source);this.finishPlayback.delete(finish);if(epoch!==this.epoch)reject(aborted());else if(error)reject(error);else resolve();};
-        this.finishPlayback.add(finish);media.onplaying=()=>root.LeeWayVoiceMetrics?.record('playback-start');media.onended=()=>finish();media.onerror=()=>finish(new Error('Browser audio playback failed.'));media.play().catch(finish);
+        this.finishPlayback.add(finish);
+        media.onplaying=()=>{root.LeeWayVoiceMetrics?.record('playback-start');onState('Audio playback started at browser output.');};
+        media.onended=()=>{onState('Audio playback ended at browser output.');finish();};
+        media.onerror=()=>finish(new Error(`Browser audio playback failed (${media.error?.message||media.error?.code||'unknown media error'}).`));
+        media.play().catch(error=>{onState(`Browser audio playback rejected (${error?.name||'Error'}): ${error?.message||'unknown error'}.`);finish(error);});
       });
     }
     setPace(value){this.playbackRate=Math.max(.6,Math.min(1.6,Number(value)||1.22));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}

@@ -54,6 +54,22 @@ export function createVoiceSdkOutput({
 
   let prepared;
   let stopped = false;
+  let playing = false;
+  const removeStateListener = typeof client.on === 'function'
+    ? client.on('voice.state', state => {
+      const message = typeof state === 'string' ? state : state?.message;
+      if (message === 'Audio playback started at browser output.') {
+        playing = true;
+        emitSafely(onEvent, {type: 'voice.playout.started', voicePackageId});
+      } else if (message === 'Audio playback ended at browser output.') {
+        playing = false;
+        emitSafely(onEvent, {type: 'voice.playout.ended', voicePackageId});
+      } else if (typeof message === 'string' && message.startsWith('Browser audio playback rejected')) {
+        playing = false;
+        emitSafely(onEvent, {type: 'voice.playout.rejected', voicePackageId, message});
+      }
+    })
+    : undefined;
 
   const verify = (status, stage) => {
     if (!isRecord(status)) throw new Error(`Voice Fabric returned no ${stage} status.`);
@@ -88,6 +104,7 @@ export function createVoiceSdkOutput({
 
   const stop = async () => {
     stopped = true;
+    playing = false;
     try { return await client.stop(); }
     finally { emitSafely(onEvent, {type: 'voice.playout.stopped', voicePackageId}); }
   };
@@ -96,6 +113,7 @@ export function createVoiceSdkOutput({
     assertString(text, 'text');
     if (signal?.aborted) throw signal.reason ?? makeAbortError('Voice output was cancelled.');
     stopped = false;
+    playing = false;
     const status = await prepare();
     if (signal?.aborted) throw signal.reason ?? makeAbortError('Voice output was cancelled.');
     verify(status, 'playout');
@@ -107,8 +125,8 @@ export function createVoiceSdkOutput({
       rejectCancelled(signal.reason ?? makeAbortError('Voice output was cancelled.'));
     };
     signal?.addEventListener('abort', onAbort, {once: true});
-    emitSafely(onEvent, {type: 'voice.playout.started', turnId, text, voicePackageId, provider: status.provider});
-    const operation = Promise.resolve().then(() => client.speak(text));
+    emitSafely(onEvent, {type: 'voice.playout.requested', turnId, text, voicePackageId, provider: status.provider});
+    const operation = Promise.resolve().then(() => client.speak(text, {allowFallback}));
     // Always observe a provider's late settlement after cancellation.
     operation.catch(() => {});
     try {
@@ -118,6 +136,7 @@ export function createVoiceSdkOutput({
       emitSafely(onEvent, {type: 'voice.playout.completed', turnId, text, voicePackageId, provider: finalStatus.provider});
       return {renderedText: text, voicePackageId, provider: finalStatus.provider, result};
     } finally {
+      playing = false;
       signal?.removeEventListener('abort', onAbort);
     }
   };
@@ -126,7 +145,9 @@ export function createVoiceSdkOutput({
     prepare,
     speak,
     stop,
+    dispose: () => { playing = false; removeStateListener?.(); },
     status: () => client.status(),
+    get playing() { return playing; },
     get voicePackageId() { return voicePackageId; },
   });
 }
@@ -175,6 +196,7 @@ export function createGovernedConversationProcessor({
 
   const processor = {
     get responding() { return activeTurns.size > 0; },
+    get playing() { return output.playing === true; },
     history: snapshot,
     async handle(frame, context) {
       if (frame.kind === 'interruption') {
@@ -253,7 +275,7 @@ export function createGovernedConversationProcessor({
             interruptible: true,
           }));
           if (!context.isCurrent()) throw makeAbortError('Conversation turn was interrupted before playout.');
-          event({type: 'conversation.playout.started', turnId, text: response});
+          event({type: 'conversation.playout.requested', turnId, text: response});
           const result = await output.speak({text: response, turnId, signal: context.signal});
           if (!context.isCurrent()) throw makeAbortError('Conversation playout was interrupted.');
           const renderedText = typeof result?.renderedText === 'string' ? result.renderedText.trim() : '';
