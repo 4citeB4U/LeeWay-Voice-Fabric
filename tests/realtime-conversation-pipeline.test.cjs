@@ -69,9 +69,9 @@ test('wake phrases activate a bounded hands-free turn and unrelated speech stays
   });
   const session = new RealtimeVoiceSession({sessionId: 'wake-word', processors: [processor]});
   await session.dispatch(finalFrame(session, 'ambient', 'what time is it'));
-  await session.dispatch(finalFrame(session, 'wake', 'Agent Lee, what time is it?'));
+  await session.dispatch(finalFrame(session, 'wake', "Hey what's up Agent Lee, what time is it?"));
   await waitFor(() => inputs.length === 1, 'wake-gated turn');
-  assert.deepEqual(inputs, ['what time is it?']);
+  assert.deepEqual(inputs, ["Hey what's up, what time is it?"]);
   assert.ok(events.some(event => event.type === 'conversation.wake_word.ignored'));
   assert.ok(events.some(event => event.type === 'conversation.wake_word.heard' && event.phrase === 'agent lee'));
   processor.dispose();

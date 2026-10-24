@@ -224,15 +224,19 @@ export function createGovernedConversationProcessor({
         if (!text || acceptedSegments.has(segmentId)) return;
         acceptedSegments.add(segmentId);
         if (wakePhrases.length) {
-          const normalized = text.toLocaleLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
           if (Date.now() >= awakeUntil) {
-            const matched = wakePhrases.find(phrase => normalized === phrase || normalized.startsWith(`${phrase} `));
-            if (!matched) {
+            const match = wakePhrases.map(phrase => {
+              const escaped = phrase.split(/\s+/).map(word => word.replace(/[.*+?^|[\]\\]/g, '\\$&')).join('\\s+');
+              const found = new RegExp('\\b' + escaped + '\\b', 'i').exec(text);
+              return found ? {phrase, index: found.index, text: found[0]} : undefined;
+            }).find(Boolean);
+            if (!match) {
               event({type: 'conversation.wake_word.ignored', segmentId, text});
               return;
             }
-            text = text.slice(matched.length).replace(/^[\s,.;:!?-]+/, '').trim();
-            event({type: 'conversation.wake_word.heard', segmentId, phrase: matched});
+            text = text.slice(0, match.index) + ' ' + text.slice(match.index + match.text.length);
+            text = text.replace(/\s+/g, ' ').replace(/\s+([,.;!?])/g, '$1').trim();
+            event({type: 'conversation.wake_word.heard', segmentId, phrase: match.phrase});
           }
           awakeUntil = Date.now() + wakeTimeoutMs;
           clearTimeout(wakeTimer);

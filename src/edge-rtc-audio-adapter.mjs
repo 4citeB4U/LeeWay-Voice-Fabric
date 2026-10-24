@@ -284,6 +284,7 @@ export function bindSpeechRecognitionToSession({
       }
     }));
     const errorHandler = event => {
+      if (event?.error === 'no-speech') return;
       const error = new Error(`Speech recognition error: ${event?.error ?? 'unknown'}`);
       try { onError?.(error, event); } catch {}
     };

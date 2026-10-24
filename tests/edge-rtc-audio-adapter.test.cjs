@@ -137,9 +137,12 @@ test('recognition automatically restarts after browser end and abort ignores a l
     }}],
   });
   let recognitionStarts = 0;
+  const errors = [];
   recognition.start = () => { recognitionStarts += 1; };
-  const bridge = bindSpeechRecognitionToSession({session, recognition, restartDelayMs: 0});
+  const bridge = bindSpeechRecognitionToSession({session, recognition, restartDelayMs: 0, onError: error => errors.push(error)});
   bridge.start();
+  handlers.get('error')({error: 'no-speech'});
+  assert.deepEqual(errors, [], 'silence is not a fatal recognition error');
   handlers.get('result')({resultIndex: 0, results: [{isFinal: true, 0: {transcript: 'first'}}]});
   handlers.get('end')();
   await new Promise(resolve => setTimeout(resolve, 0));
