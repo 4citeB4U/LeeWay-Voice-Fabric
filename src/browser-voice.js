@@ -4,7 +4,7 @@
   const REVISION='3cab09af388d3f02bba43443fce88c1f4525ac43';
   const sourceURL=typeof document!=='undefined'?document.currentScript?.src:null;
   const DEFAULT_REFERENCE='https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav';
-  const FABRIC_BUILD='20261002-native-encoder1';
+  const FABRIC_BUILD='20261024-chatterbox-turbo-conversation';
   const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v='+FABRIC_BUILD,sourceURL).href:'/src/chatterbox.worker.js?v='+FABRIC_BUILD;
   const CACHE_MODULE_URL=sourceURL?new URL('voice-model-cache.js?v='+FABRIC_BUILD,sourceURL).href:'/src/voice-model-cache.js?v='+FABRIC_BUILD;
   const NATIVE_MODULE_URL=sourceURL?new URL('native-decoder-client.js?v='+FABRIC_BUILD,sourceURL).href:'/src/native-decoder-client.js?v='+FABRIC_BUILD;
@@ -48,7 +48,10 @@
     static segmentCut(text,options){return segmentCut(text,options);}
     createWorker(){
       if(this.worker)return;
-      const worker=this.worker=new Worker(this.options.workerURL||WORKER_URL,{type:'module'});
+      const workerURL=new URL(this.options.workerURL||WORKER_URL,root.location?.href||'https://voice-fabric.invalid/');
+      if(this.options.model==='turbo')workerURL.searchParams.set('model','turbo');
+      else workerURL.searchParams.delete('model');
+      const worker=this.worker=new Worker(workerURL.href,{type:'module'});
       worker.onmessage=({data:message})=>{
         if(this.worker!==worker)return;
         if(message.type==='native-decoder'){
@@ -130,7 +133,9 @@
           if(lifecycle!==this.lifecycle)throw aborted();
         };
         if(initialDevice==='wasm')await prepareCpuPath();
-        onProgress({status:'initiate',file:'Chatterbox voice',total:LeeWayBrowserVoice.download.webgpuBytes});
+        const turbo=this.options.model==='turbo';
+        onProgress({status:'initiate',file:turbo?'Chatterbox Turbo · Agent Lee Voice One':'Chatterbox voice',
+          ...(turbo?{message:'Quantized Chatterbox Turbo model; about 0.56–0.72 GB on first download.'}:{total:LeeWayBrowserVoice.download.webgpuBytes})});
         let result;
         try{result=await this.request('load',{device:initialDevice,nativeDecoder:!!this.nativeDecoder},onProgress);}
         catch(error){
@@ -243,3 +248,4 @@
   }
   root.LeeWayBrowserVoice=LeeWayBrowserVoice;
 })(globalThis);
+
