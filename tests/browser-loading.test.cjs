@@ -40,7 +40,7 @@ test('Turbo keeps speaker encoding and waveform decoding at high precision',asyn
 });
 test('Turbo generation uses the published repetition and sampling profile',()=>{
  const scope={URL,console,Float32Array,performance,self:{location:{href:'https://example.test/worker.js?model=turbo'},addEventListener(){},navigator:{},postMessage(){}},env:{backends:{onnx:{wasm:{},webgpu:{}}}},InterruptableStoppingCriteria:class{}};
- vm.createContext(scope);const source=fs.readFileSync(__dirname+'/../src/chatterbox.worker.js','utf8').replace(/^import .*;\\r?\\n/gm,'');
+ vm.createContext(scope);const source=fs.readFileSync(__dirname+'/../src/chatterbox.worker.js','utf8').replace(/^import .*;\r?\n/gm,'');
  vm.runInContext(source,scope);
  const turbo=JSON.parse(JSON.stringify(vm.runInContext('generationParameters({},null,null)',scope)));
  assert.equal(turbo.temperature,.8);assert.equal(turbo.top_k,1000);assert.equal(turbo.repetition_penalty,1.2);assert.equal(turbo.max_new_tokens,1024);
