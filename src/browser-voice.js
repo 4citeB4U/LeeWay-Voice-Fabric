@@ -135,7 +135,7 @@
         if(initialDevice==='wasm')await prepareCpuPath();
         const turbo=this.options.model==='turbo';
         onProgress({status:'initiate',file:turbo?'Chatterbox Turbo · Agent Lee Voice One':'Chatterbox voice',
-          ...(turbo?{message:'Quantized Chatterbox Turbo model; about 0.56–0.72 GB on first download.'}:{total:LeeWayBrowserVoice.download.webgpuBytes})});
+          ...(turbo?{message:'Preparing the higher-fidelity Chatterbox Turbo profile; first-download size depends on device precision and cache.'}:{total:LeeWayBrowserVoice.download.webgpuBytes})});
         let result;
         try{result=await this.request('load',{device:initialDevice,nativeDecoder:!!this.nativeDecoder},onProgress);}
         catch(error){
