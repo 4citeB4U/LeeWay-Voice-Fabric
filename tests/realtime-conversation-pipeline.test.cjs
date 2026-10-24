@@ -130,6 +130,47 @@ test('barge-in during playout does not commit unheard assistant text and a new t
   assert.equal(processor.history().some(item => item.content === 'reply:second' && item.evidence === 'audio.rendered'), true);
 });
 
+test('slow voice preparation and playout never hold the realtime media frame drain', async () => {
+  const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
+  let speechStarted;
+  const speaking = new Promise(resolve => { speechStarted = resolve; });
+  let audioFrames = 0;
+  let stopped = 0;
+  const processor = createGovernedConversationProcessor({
+    authorizeInput: async () => true,
+    generateResponse: async () => 'Agent Lee response',
+    authorizeResponse: async () => true,
+    output: {
+      async speak({signal}) {
+        speechStarted();
+        await new Promise((resolve, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason), {once: true});
+        });
+        return {renderedText: 'unreachable'};
+      },
+      async stop() { stopped += 1; },
+    },
+  });
+  const session = new RealtimeVoiceSession({sessionId: 'slow-playout-media-drain', maxQueueSize: 4, processors: [{
+    async handle(frame, context) {
+      await processor.handle(frame, context);
+      if (frame.kind === 'audio.input') audioFrames += 1;
+    },
+  }]});
+  await session.dispatch(finalFrame(session, 'segment-1', 'speak while listening'));
+  await speaking;
+  assert.equal(processor.responding, true);
+  for (let index = 0; index < 40; index += 1) {
+    await session.dispatch(session.frame('audio.input', {pcm: new ArrayBuffer(1024), sampleRate: 16000, channels: 1}, {
+      direction: 'downstream', class: 'data', interruptible: false,
+    }));
+  }
+  assert.equal(audioFrames, 40);
+  await session.interrupt('speechstart');
+  await waitFor(() => stopped === 1, 'interrupted output stop');
+  await waitFor(() => !processor.responding, 'interrupted task cleanup');
+});
+
 test('Voice SDK output rejects an unapproved fallback before speech', async () => {
   const {createVoiceSdkOutput} = await modules();
   let speaks = 0;

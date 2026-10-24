@@ -158,9 +158,15 @@ export function createGovernedConversationProcessor({
 
   const history = [];
   const acceptedSegments = new Set();
-  let responding = 0;
+  const activeTurns = new Set();
 
   const event = detail => emitSafely(onEvent, detail);
+  const launchTurn = (turnId, stage, signal, run) => {
+    activeTurns.add(turnId);
+    void Promise.resolve().then(run).catch(error => {
+      if (error?.name !== 'AbortError') event({type: 'conversation.task.failed', turnId, stage, error});
+    }).finally(() => activeTurns.delete(turnId));
+  };
   const append = message => {
     history.push(Object.freeze({...message}));
     if (history.length > maxHistoryMessages) history.splice(0, history.length - maxHistoryMessages);
@@ -168,7 +174,7 @@ export function createGovernedConversationProcessor({
   const snapshot = () => history.map(message => ({...message}));
 
   const processor = {
-    get responding() { return responding > 0; },
+    get responding() { return activeTurns.size > 0; },
     history: snapshot,
     async handle(frame, context) {
       if (frame.kind === 'interruption') {
@@ -198,8 +204,7 @@ export function createGovernedConversationProcessor({
         const text = String(frame.payload?.text ?? '').trim();
         assertString(text, 'conversation input');
         const turnId = frame.turnId ?? `turn-${frame.sequence}`;
-        responding += 1;
-        try {
+        launchTurn(turnId, 'turn', context.signal, async () => {
           const inputGate = decision(await authorizeInput({
             text,
             turnId,
@@ -247,27 +252,20 @@ export function createGovernedConversationProcessor({
             class: 'data',
             interruptible: true,
           }));
-        } finally {
-          responding -= 1;
-        }
+          if (!context.isCurrent()) throw makeAbortError('Conversation turn was interrupted before playout.');
+          event({type: 'conversation.playout.started', turnId, text: response});
+          const result = await output.speak({text: response, turnId, signal: context.signal});
+          if (!context.isCurrent()) throw makeAbortError('Conversation playout was interrupted.');
+          const renderedText = typeof result?.renderedText === 'string' ? result.renderedText.trim() : '';
+          if (renderedText) append({role: 'assistant', content: renderedText, turnId, evidence: 'audio.rendered'});
+          event({type: 'conversation.playout.completed', turnId, text: response, renderedText, result});
+        });
         return;
       }
 
       if (frame.kind === 'agent.text.final') {
-        const text = String(frame.payload?.text ?? '').trim();
-        assertString(text, 'agent response');
-        const turnId = frame.turnId ?? `turn-${frame.sequence}`;
-        responding += 1;
-        try {
-          event({type: 'conversation.playout.started', turnId, text});
-          const result = await output.speak({text, turnId, signal: context.signal});
-          if (!context.isCurrent()) throw makeAbortError('Conversation playout was interrupted.');
-          const renderedText = typeof result?.renderedText === 'string' ? result.renderedText.trim() : '';
-          if (renderedText) append({role: 'assistant', content: renderedText, turnId, evidence: 'audio.rendered'});
-          event({type: 'conversation.playout.completed', turnId, text, renderedText, result});
-        } finally {
-          responding -= 1;
-        }
+        // This frame is an observable text artifact. Slow TTS is owned by the
+        // background turn task above and must never block the serialized media drain.
       }
     },
   };
