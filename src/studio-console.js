@@ -190,6 +190,9 @@ function startConsole() {
         record('shared-revision-changed', {revision: state.recordRevision});
       }
       ownerSession = state; sharedSignature = state.recordRevision; showOwner(state);
+      document.dispatchEvent(new CustomEvent('leeway:shared-voice',{detail:{
+        voicePackageId:state.binding.voicePackageId,revision:state.recordRevision,
+        authority:state.authority,source:'owner-readback'}}));
       if (!quiet || changed || !sharedMessage) {
         sharedMessage = changed ? 'Shared revision changed. Load it into your audition when ready.' : 'Connected to the existing Voice Fabric owner. Preview freely; Apply publishes your selected speaker and acoustic tuning.';
         $('sharedVoiceState').textContent = sharedMessage;
@@ -219,6 +222,9 @@ function startConsole() {
         throw new Error('Publication occurred, but its revision changed before readback. Refresh to inspect the current shared selection.');
       }
       ownerSession = readback; sharedSignature = readback.recordRevision; showOwner(readback);
+      document.dispatchEvent(new CustomEvent('leeway:shared-voice',{detail:{
+        voicePackageId:readback.binding.voicePackageId,revision:readback.recordRevision,
+        authority:readback.authority,source:'owner-publication-readback'}}));
       sharedMessage = 'Published and read back from the Voice Fabric binding. Paired-device delivery and listening are awaiting acknowledgement.';
       $('sharedVoiceState').textContent = sharedMessage;
       record('shared-publication-readback', {revision: result.recordRevision, voicePackageId: payload.voicePackageId, publicationReceipt: result.publicationReceipt});

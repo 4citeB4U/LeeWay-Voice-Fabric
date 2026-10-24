@@ -2,6 +2,9 @@
   "name": "leeway-voice-fabric",
   "version": "1.0.0",
   "private": true,
+  "exports": {
+    "./voice-client": "./src/voice-fabric-client.mjs"
+  },
   "scripts": {
     "voice:duplex:verify": "node scripts/voice-duplex-restore.mjs verify",
     "voice:duplex:restore": "node scripts/voice-duplex-restore.mjs restore-install",
