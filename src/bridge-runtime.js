@@ -91,6 +91,11 @@ async function speakWithRecovery(source,origin,text){
     await voice.speak(text,{onState:state});
   }
 }
+async function speakSelectedVoice(source,origin,text){
+  await ensureReady(source,origin);
+  const state=s=>event(source,origin,'voice.state',{message:s,selectedVoiceId});
+  await voice.speak(text,{onState:state});
+}
 function peakAndRms(buffer){
   const samples=new Float32Array(buffer);let peak=0,sum=0;
   for(const x of samples){if(!Number.isFinite(x))return {peak:NaN,rms:NaN,samples:samples.length};const a=Math.abs(x);if(a>peak)peak=a;sum+=x*x;}
@@ -176,7 +181,8 @@ addEventListener('message',async e=>{
         reply(e.source,e.origin,m.id,true,{name:m.data.name||'custom-reference'});break;
       }
       case 'speak':
-        await speakWithRecovery(e.source,e.origin,String(m.data?.text||''));
+        if(m.data?.allowFallback===false)await speakSelectedVoice(e.source,e.origin,String(m.data?.text||''));
+        else await speakWithRecovery(e.source,e.origin,String(m.data?.text||''));
         reply(e.source,e.origin,m.id,true,{completed:true,selectedVoiceId,provider:activeProvider});break;
       case 'streamStart':{
         await ensureReady(e.source,e.origin);

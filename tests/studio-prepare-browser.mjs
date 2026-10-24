@@ -26,7 +26,17 @@ catch (error) {
 }
 const sources = new Map(await Promise.all(['studio.html','index.html','src/studio.js','src/browser-voice.js']
   .map(async name => [name, await readFile(path.join(root, name))])));
-assert.deepEqual(sources.get('studio.html'), sources.get('index.html'), 'Studio entry documents must be identical');
+// Studio now owns the optional inline duplex workspace. The landing page
+// intentionally retains its original layout; both must keep the shared
+// voice-preparation controls that this regression exercises.
+for (const entry of ['studio.html', 'index.html']) {
+  const html = sources.get(entry).toString('utf8');
+  for (const control of ['id="voiceList"', 'id="prepare"', 'id="cancelPrepare"', 'id="runtime"']) {
+    assert.ok(html.includes(control), entry + ': missing common voice preparation control ' + control);
+  }
+}
+assert.ok(sources.get('studio.html').toString('utf8').includes('id="duplexInline"'),
+  'Studio retains the new inline conversation workspace');
 const report = {scope: 'ACTUAL_BROWSER_PREPARATION_CANCELLATION_WITH_HELD_WORKER_REQUEST',
   modelDownload: 'NOT_STARTED', providerExecution: 'NOT_EXECUTED',
   sourceSha256: Object.fromEntries([...sources].map(([name, bytes]) => [name, createHash('sha256').update(bytes).digest('hex')])),

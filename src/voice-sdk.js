@@ -13,7 +13,7 @@ export class LeeWayVoiceClient {
     if(this.destroyed)return Promise.reject(new Error('Voice client destroyed.'));
     if(this.ready)return this.ready;
     this.ready=new Promise((resolve,reject)=>{
-      const frame=document.createElement('iframe');this.frame=frame;frame.hidden=true;
+      const frame=document.createElement('iframe');this.frame=frame;frame.hidden=true;frame.allow='autoplay';
       frame.setAttribute('aria-hidden','true');frame.src=`${this.origin}/bridge.html#token=${encodeURIComponent(this.token)}`;
       const timer=this._connectionTimer=setTimeout(()=>reject(new Error('LeeWay Voice Fabric bridge did not become ready.')),this.timeoutMs);this._rejectConnection=reject;
       const onMessage=e=>{
@@ -50,7 +50,7 @@ export class LeeWayVoiceClient {
   selectVoice(voicePackageId){return this.call('selectVoice',{voicePackageId:String(voicePackageId)});}
   prepare(provider){return this.call('prepare',{provider});}
   configure(options){return this.call('configure',options);}
-  speak(text){return this.call('speak',{text:String(text)});}
+  speak(text,{allowFallback=true}={}){return this.call('speak',{text:String(text),allowFallback:allowFallback!==false});}
   streamStart(streamId=crypto.randomUUID()){return this.call('streamStart',{streamId}).then(()=>streamId);}
   streamChunk(streamId,text){return this.call('streamChunk',{streamId,text:String(text)});}
   streamEnd(streamId){return this.call('streamEnd',{streamId});}

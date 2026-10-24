@@ -28,6 +28,11 @@ Start `python adapters/start-studio.py --setup` (Python 3.10+ and Node.js), then
 
 ## Public browser surface
 
+The experimental Pipecat-inspired session and Edge RTC adapter are documented in
+[the realtime integration status](docs/PIPECAT-INTEGRATION.md). Publishing that
+source is not a live-conversation release: microphone dictation, governed
+responses and full-duplex interruption require their own acceptance evidence.
+
 GitHub Pages hosts:
 - `index.html` — the same full spatial Studio as `studio.html`.
 - `bridge.html` â€” hidden same-origin runtime used by the SDK.

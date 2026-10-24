@@ -17,6 +17,30 @@ function startConsole() {
   let visual = null, disposed = false, ownerSession = null, ownerPending = false;
   let sharedMessage = '', sharedSignature = '', lastPhase = '', lastDraft = '';
   let micPending = false, micRequest = 0, aboveThresholdSince = null;
+  let duplex={active:false,phase:'idle',inputRms:0};
+  const onDuplexActivity=event=>{
+    const detail=event.detail||{};
+    if(typeof detail.active!=='boolean') return;
+    duplex.active=detail.active;
+    // Mic level reports are observations, not speech-phase transitions.
+    // Preserve the confirmed Kokoro playback phase until a playout-ended event.
+    if(detail.kind!=='mic-level' && typeof detail.phase==='string') duplex.phase=detail.phase;
+    if(typeof detail.inputRms==='number'&&Number.isFinite(detail.inputRms)) {
+      duplex.inputRms=Math.min(1,Math.max(0,detail.inputRms));
+    }
+    if(detail.active) {
+      // One capture owner: the iframe's AEC path owns the microphone.
+      monitor.stopMicrophone();
+      $('toggleMic').disabled=true;
+      $('bargeIn').checked=false;
+      $('bargeIn').disabled=true;
+    } else {
+      $('toggleMic').disabled=false;
+      $('bargeIn').disabled=false;
+    }
+    updateActivity();
+  };
+  document.addEventListener('leeway:duplex-activity',onDuplexActivity);
   let lighting = true, activityTimer, ownerTimer;
   const monitor = new StudioMonitor({onMicrophone(active, settings) {
     $('toggleMic').setAttribute('aria-pressed', String(active));
@@ -168,6 +192,9 @@ function startConsole() {
         record('shared-revision-changed', {revision: state.recordRevision});
       }
       ownerSession = state; sharedSignature = state.recordRevision; showOwner(state);
+      document.dispatchEvent(new CustomEvent('leeway:shared-voice',{detail:{
+        voicePackageId:state.binding.voicePackageId,revision:state.recordRevision,
+        authority:state.authority,source:'owner-readback'}}));
       if (!quiet || changed || !sharedMessage) {
         sharedMessage = changed ? 'Shared revision changed. Load it into your audition when ready.' : 'Connected to the existing Voice Fabric owner. Preview freely; Apply publishes your selected speaker and acoustic tuning.';
         $('sharedVoiceState').textContent = sharedMessage;
@@ -197,6 +224,9 @@ function startConsole() {
         throw new Error('Publication occurred, but its revision changed before readback. Refresh to inspect the current shared selection.');
       }
       ownerSession = readback; sharedSignature = readback.recordRevision; showOwner(readback);
+      document.dispatchEvent(new CustomEvent('leeway:shared-voice',{detail:{
+        voicePackageId:readback.binding.voicePackageId,revision:readback.recordRevision,
+        authority:readback.authority,source:'owner-publication-readback'}}));
       sharedMessage = 'Published and read back from the Voice Fabric binding. Paired-device delivery and listening are awaiting acknowledgement.';
       $('sharedVoiceState').textContent = sharedMessage;
       record('shared-publication-readback', {revision: result.recordRevision, voicePackageId: payload.voicePackageId, publicationReceipt: result.publicationReceipt});
@@ -211,7 +241,9 @@ function startConsole() {
   document.addEventListener('leeway:studio', onStudioEvent);
   function onStudioEvent(event) {
     const detail = event.detail || {};
-    if (!['draft-change','phase'].includes(detail.type)) record(detail.type || 'studio-event', detail);
+    if (detail.type==='duplex-evidence' && typeof detail.observation==='string') {
+      record('duplex · '+detail.observation.slice(0,180), {source:'Edge RTC conversation', observation:detail.observation});
+    } else if (!['draft-change','phase'].includes(detail.type)) record(detail.type || 'studio-event', detail);
     if (detail.type === 'first-audio-ready') $('generationTiming').textContent = `First segment ready · ${detail.latencyMs} ms`;
     if (detail.type === 'generation-complete') $('generationTiming').textContent = `Generated · ${(detail.generationMs / 1000).toFixed(2)} s`;
     updateActivity();
@@ -221,7 +253,10 @@ function startConsole() {
     const snapshot = controller.snapshot();
     $('speakStream').disabled = !snapshot.ready;
     $('speakStream').textContent = snapshot.selected?.voiceUuid ? '▶ Stream · account credits' : '▶ Speak / Stream';
-    let phase = snapshot.phase;
+    let phase = duplex.active ? duplex.phase : snapshot.phase;
+    if(phase==='listening') phase='streaming';
+    if(phase==='thinking'||phase==='starting') phase='generating';
+    if(phase==='stopping'||phase==='stopped'||phase==='ready') phase='idle';
     if (!$('referencePlayer').paused && phase !== 'streaming') phase = 'speaking';
     if (phase !== lastPhase) {
       const labels = {idle:'Standby',preparing:'Preparing',generating:'Generating',streaming:'Streaming',speaking:'Speaking',paused:'Paused',interrupted:'Interrupted',error:'Error'};
@@ -229,14 +264,21 @@ function startConsole() {
       visual?.setState(phase); lastPhase = phase;
     }
     const playing = !$('outputPlayer').paused || !$('referencePlayer').paused;
-    $('signalSource').textContent = !$('referencePlayer').paused ? 'Original reference' : playing ? (snapshot.phase === 'streaming' ? 'Synthesized voice' : snapshot.source) : 'No audio playing';
-    $('meshState').textContent = playing ? 'Following voice output' : monitor.stream ? 'Following microphone' : 'Awaiting audio';
+    if(duplex.active){
+      $('signalSource').textContent=duplex.phase==='speaking'?'Kokoro duplex playback (observed)':'Duplex microphone (AEC track)';
+      $('meshState').textContent=duplex.phase==='speaking'?'Following conversation playback state':
+        duplex.phase==='listening'?'Following microphone activity':'Duplex '+duplex.phase;
+      $('micLevel').textContent=duplex.inputRms>0?(20*Math.log10(duplex.inputRms)).toFixed(0)+' dBFS':'Mic quiet';
+      $('outputLevel').textContent=duplex.phase==='speaking'?'Playback active (state only)':'No playback event';
+    }
+    if(!duplex.active) $('signalSource').textContent = !$('referencePlayer').paused ? 'Original reference' : playing ? (snapshot.phase === 'streaming' ? 'Synthesized voice' : snapshot.source) : 'No audio playing';
+    if(!duplex.active) $('meshState').textContent = playing ? 'Following voice output' : monitor.stream ? 'Following microphone' : 'Awaiting audio';
     const sampled = monitor.sample();
-    $('micLevel').textContent = monitor.stream ? `${sampled.inputRms > 0 ? Math.max(-90,20*Math.log10(sampled.inputRms)).toFixed(0) : '−∞'} dBFS` : 'Off';
-    $('outputLevel').textContent = sampled.output.some(value => value > 0) ? 'Signal detected' : 'Silent';
+    if(!duplex.active) $('micLevel').textContent = monitor.stream ? `${sampled.inputRms > 0 ? Math.max(-90,20*Math.log10(sampled.inputRms)).toFixed(0) : '−∞'} dBFS` : 'Off';
+    if(!duplex.active) $('outputLevel').textContent = sampled.output.some(value => value > 0) ? 'Signal detected' : 'Silent';
     // Level-triggered interruption is opt-in; these are local detection settings,
     // not claimed Formula calibration or a speech-recognition result.
-    if ($('bargeIn').checked && playing && sampled.inputRms > .035) {
+    if (!duplex.active && $('bargeIn').checked && playing && sampled.inputRms > .035) {
       if (aboveThresholdSince === null) aboveThresholdSince = performance.now();
       else if (performance.now() - aboveThresholdSince >= 200) {controller.stop('Interrupted by sustained microphone input.');record('microphone-interrupt');aboveThresholdSince = null;}
     } else aboveThresholdSince = null;
@@ -257,11 +299,12 @@ function startConsole() {
   import('./studio-visualizer.js').then(module => module.createStudioVisualizer({
     canvas:$('webglCanvas'),inputCanvas:$('micSpectrum'),outputCanvas:$('ttsSpectrum'),sample:()=>monitor.sample(),
     onOrbit:degrees=>{$('micOrbit').value=degrees;updateAppearance();},onMode:mode=>{$('rendererState').textContent=mode;},
-  })).then(instance=>{if(disposed){instance.dispose();return;}visual=instance;updateAppearance();visual.setState(controller.snapshot().phase);})
+  })).then(instance=>{if(disposed){instance.dispose();return;}visual=instance;updateAppearance();visual.setState(lastPhase || controller.snapshot().phase);})
     .catch(error=>{$('rendererState').textContent='Visualizer unavailable · voice controls active';record('visualizer-unavailable',{message:error.message});});
   function dispose() {
     if (disposed) return;
     disposed=true;clearInterval(activityTimer);clearInterval(ownerTimer);document.removeEventListener('leeway:studio',onStudioEvent);
+    document.removeEventListener('leeway:duplex-activity',onDuplexActivity);
     ++micRequest;controller.stop('Studio closed.');visual?.dispose();monitor.dispose().catch(()=>{});
   }
   addEventListener('pagehide', event => {if (!event.persisted) dispose();else {controller.stop('Studio suspended.');monitor.stopMicrophone();}});
