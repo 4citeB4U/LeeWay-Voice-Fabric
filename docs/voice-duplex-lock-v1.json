@@ -24,8 +24,8 @@
     "voice-fabric/src/speech-text-normalizer.mjs": "a58e43c3582dde12a15ade42fa9441354acb2dc99cdc67d5ffc6eb0bbbf2005c",
     "tests/studio-activity.test.ts": "c49a92aaf3fd53bae250b6213041af189f516fb099ab463e54424648db75c165",
     "voice-fabric/studio.html": "7d919ff2e85d5b8e22afb15ba04235357dbdebbc98fec59cc744a01ceb3defad",
-    "voice-fabric/src/studio-console.js": "ea9db4e0d810e1f1da1c20bf96fdf3931f385a57dd9139fe49dbc101bf1a37bd",
-    "voice-fabric/src/studio-visualizer.js": "9bb24bb24cd69825c22061e01a494b6cf21b969ef4abaa574d5b289cab6c59cf",
+    "voice-fabric/src/studio-console.js": "eb45fffd5ce45d05e6f761db10efe12d93f23faaa7bbeff720d17323eb1fca77",
+    "voice-fabric/src/studio-visualizer.js": "b8eae36a5cb60efb931b2c5182e1306ca40f3bb33b889098b7a5eeadd6ca948f",
     "voice-fabric/src/studio-duplex-adapter.js": "d1d35da1df17f379cbc5c810c6cccda0024e4b9562275bbc2ecbcd25eb814b15",
     "voice-fabric/src/studio-duplex-workspace.css": "3bc271074478a0f90fec3de7a8077d72201e1b987abb5d8c8dbe66c92dcb2e63",
     "voice-fabric/scripts/voice-duplex-deploy-studio.mjs": "f3a64914da075959e785334f5bf4788a55466904977d164dd303ebbc27b129e3",
@@ -35,7 +35,8 @@
     "voice-fabric/src/voice-fabric-client.mjs": "14c4a5700361bf784430f9e12ebf9f92d460bc44d0b160dff9fc08cd68ce91c9",
     "voice-fabric/tests/voice-fabric-client.test.cjs": "7b31d0c46b739da76fb09eafae718373fac56151cb2c0020c428ca8f877cd103",
     "voice-fabric/docs/VOICE-APPLICATION-API-SDK-v1.md": "4eb1b0b64655c4c0456e5a1b5c2b6b0e664fbdad0a1b8c9c23c7671def588482",
-    "voice-fabric/package.json": "ab56785bfe6020fa074f1e0a7249b637c39791882376aba9f2d503d1d9a16b2e"
+    "voice-fabric/package.json": "ab56785bfe6020fa074f1e0a7249b637c39791882376aba9f2d503d1d9a16b2e",
+    "voice-fabric/tests/studio-duplex-sphere-browser.mjs": "84a80d2039b823f94fe18de2aced3c87ec6bb7aaa3fa654276ffdba44ed9182c"
   },
   "edgeRtcCommit": "847f9972127bc4ab6724f676e979565d977e113f",
   "edgeRtcBranch": "codex/voice-duplex-lock-v1-20261024",
@@ -47,5 +48,7 @@
   "voiceConsumerApi": "leeway.voice-consumer.v1",
   "voiceSelectionAuthority": "LEEWAY_VOICE_FABRIC",
   "voiceSdkPublication": "OWNER_STUDIO_AUTHORIZED_ONLY",
-  "remoteDeviceSynchronization": "PENDING_AUTHENTICATED_BRIDGE_TRANSPORT"
+  "remoteDeviceSynchronization": "PENDING_AUTHENTICATED_BRIDGE_TRANSPORT",
+  "spherePlayback": "3D_SPEAKING_PHASE_DRIVES_SHADER_AND_SCALE",
+  "sphereEvidence": "BROWSER_SIMULATED_PLAYBACK_STATE_PASS_PHYSICAL_AUDIO_UNVERIFIED"
 }

@@ -372,14 +372,15 @@ export async function createStudioVisualizer({canvas, inputCanvas, outputCanvas,
         const palette = PALETTES[appearance.theme];
         uniforms.uTime.value = time;
         uniforms.uDeform.value = still ? 0 : appearance.deform;
-        uniforms.uAudio.value.set(average(combinedBands, 0, 10), average(combinedBands, 10, 23), average(combinedBands, 23, 32));
+        const motion=phase==='speaking'&&!still?0.19+0.10*(0.5+0.5*Math.sin(time*12)):0;
+        uniforms.uAudio.value.set(Math.max(average(combinedBands,0,10),motion),Math.max(average(combinedBands,10,23),motion*.82),Math.max(average(combinedBands,23,32),motion*.68));
         uniforms.uColor.value.set(palette.core);
         uniforms.uEdge.value.set(phase === 'error' || phase === 'interrupted' ? '#ff687c' : phase === 'paused' ? '#f0cd83' : palette.edge);
         uniforms.uLighting.value = appearance.lighting ? 1.5 : 1;
         group.rotation.y = still ? 0 : time * .10;
         group.rotation.x = still ? 0 : Math.sin(time * .15) * .08;
         // A subtle visual idle breath is distinct from the measured spectral input.
-        group.scale.setScalar(still ? 1 : 1 + Math.sin(time * .7) * .006);
+        group.scale.setScalar(still?1:phase==='speaking'?1.04+Math.sin(time*9)*.035:1+Math.sin(time*.7)*.006);
         particles.rotation.y = still ? 0 : -time * .025;
         pointMaterial.color.set(palette.particle); pointMaterial.opacity = .45 + signal * .45;
         nodeMaterial.color.set(phase === 'error' || phase === 'interrupted' ? '#ff687c' : palette.output);

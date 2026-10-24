@@ -22,7 +22,9 @@ function startConsole() {
     const detail=event.detail||{};
     if(typeof detail.active!=='boolean') return;
     duplex.active=detail.active;
-    if(typeof detail.phase==='string') duplex.phase=detail.phase;
+    // Mic level reports are observations, not speech-phase transitions.
+    // Preserve the confirmed Kokoro playback phase until a playout-ended event.
+    if(detail.kind!=='mic-level' && typeof detail.phase==='string') duplex.phase=detail.phase;
     if(typeof detail.inputRms==='number'&&Number.isFinite(detail.inputRms)) {
       duplex.inputRms=Math.min(1,Math.max(0,detail.inputRms));
     }
@@ -295,7 +297,7 @@ function startConsole() {
   import('./studio-visualizer.js').then(module => module.createStudioVisualizer({
     canvas:$('webglCanvas'),inputCanvas:$('micSpectrum'),outputCanvas:$('ttsSpectrum'),sample:()=>monitor.sample(),
     onOrbit:degrees=>{$('micOrbit').value=degrees;updateAppearance();},onMode:mode=>{$('rendererState').textContent=mode;},
-  })).then(instance=>{if(disposed){instance.dispose();return;}visual=instance;updateAppearance();visual.setState(controller.snapshot().phase);})
+  })).then(instance=>{if(disposed){instance.dispose();return;}visual=instance;updateAppearance();visual.setState(lastPhase || controller.snapshot().phase);})
     .catch(error=>{$('rendererState').textContent='Visualizer unavailable · voice controls active';record('visualizer-unavailable',{message:error.message});});
   function dispose() {
     if (disposed) return;
