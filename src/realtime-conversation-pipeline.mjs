@@ -8,6 +8,12 @@ const makeAbortError = message => {
   error.name = 'AbortError';
   return error;
 };
+const isPlaybackEcho = (transcript, spokenText) => {
+  const normalize = value => String(value ?? '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const heard = normalize(transcript);
+  const spoken = normalize(spokenText);
+  return Boolean(heard && spoken && heard.split(/\s+/).length >= 2 && (` ${spoken} `).includes(` ${heard} `));
+};
 
 function assertFunction(value, name) {
   if (typeof value !== 'function') throw new TypeError(`${name} must be a function.`);
@@ -191,6 +197,7 @@ export function createGovernedConversationProcessor({
   const wakePhrases = wakeWords.map(phrase => phrase.trim().toLocaleLowerCase()).sort((a, b) => b.length - a.length);
   let awakeUntil = 0;
   let wakeTimer;
+  let activeResponseText = '';
 
   const event = detail => emitSafely(onEvent, detail);
   const launchTurn = (turnId, stage, signal, run) => {
@@ -212,6 +219,7 @@ export function createGovernedConversationProcessor({
     dispose() { clearTimeout(wakeTimer); awakeUntil = 0; },
     async handle(frame, context) {
       if (frame.kind === 'interruption') {
+        activeResponseText = '';
         event({type: 'conversation.interrupted', epoch: frame.epoch, turnId: frame.turnId, reason: frame.payload?.reason});
         Promise.resolve().then(() => output.stop()).catch(error => event({type: 'conversation.output.stop.failed', error}));
         return;
@@ -222,6 +230,10 @@ export function createGovernedConversationProcessor({
         let text = String(frame.payload?.text ?? '').trim();
         assertString(segmentId, 'transcript segmentId');
         if (!text || acceptedSegments.has(segmentId)) return;
+        if (output.playing === true && isPlaybackEcho(text, activeResponseText)) {
+          event({type: 'conversation.transcript.echo_suppressed', segmentId, text});
+          return;
+        }
         acceptedSegments.add(segmentId);
         if (wakePhrases.length) {
           if (Date.now() >= awakeUntil) {
@@ -304,6 +316,7 @@ export function createGovernedConversationProcessor({
             return;
           }
           if (!context.isCurrent()) throw makeAbortError('Conversation turn was interrupted before output.');
+          activeResponseText = response;
           event({type: 'conversation.response.authorized', turnId, text: response});
           await context.emit(context.session.frame('agent.text.final', {text: response, inputText: text}, {
             turnId,
@@ -313,7 +326,12 @@ export function createGovernedConversationProcessor({
           }));
           if (!context.isCurrent()) throw makeAbortError('Conversation turn was interrupted before playout.');
           event({type: 'conversation.playout.requested', turnId, text: response});
-          const result = await output.speak({text: response, turnId, signal: context.signal});
+          let result;
+          try {
+            result = await output.speak({text: response, turnId, signal: context.signal});
+          } finally {
+            if (activeResponseText === response) activeResponseText = '';
+          }
           if (!context.isCurrent()) throw makeAbortError('Conversation playout was interrupted.');
           const renderedText = typeof result?.renderedText === 'string' ? result.renderedText.trim() : '';
           if (renderedText) append({role: 'assistant', content: renderedText, turnId, evidence: 'audio.rendered'});
@@ -336,3 +354,4 @@ export const LeeWayConversationDefaults = Object.freeze({
   voicePackageId: DEFAULT_VOICE_PACKAGE_ID,
   provider: DEFAULT_VOICE_PROVIDER,
 });
+
