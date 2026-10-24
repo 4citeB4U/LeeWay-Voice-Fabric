@@ -42,7 +42,10 @@ if(!available){
  await run('git',['checkout','--detach',manifest.edgeRtcCommit],target);
 }
 if(action==='restore-install'){
- await run(process.platform==='win32'?'npm.cmd':'npm',['ci'],target);
+ // Node 24 on Windows cannot spawn npm.cmd with shell:false. Use a fixed
+ // cmd invocation with no user-supplied shell fragments or arguments.
+ if(process.platform==='win32') await run(process.env.ComSpec||'cmd.exe',['/d','/s','/c','npm ci'],target);
+ else await run('npm',['ci'],target);
 }
 await run(process.execPath,[path.join(root,'scripts/voice-duplex-lock.mjs'),'verify']);
 console.log(JSON.stringify({status:'PINNED_DUPLEX_SOURCE_VERIFIED',edgeRtcCommit:manifest.edgeRtcCommit,
