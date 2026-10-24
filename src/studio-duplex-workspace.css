@@ -59,3 +59,24 @@ body.leeway-duplex-open #studioStage .stage-actions,
 body.leeway-duplex-open #studioStage .mix-grid,
 body.leeway-duplex-open #studioStage .scene-options,
 body.leeway-duplex-open #studioStage .stage-panel>.hint{display:none}
+
+
+/* LEEWAY HEADER — DO NOT REMOVE | REGION: VOICE.STUDIO.ONE_RESPONSE_UI
+   The original text field is the sole Agent Lee output display.
+   Keep its section visible while speaking and suppress audition-only actions.
+   Evidence stays in the existing Studio runtime evidence details. */
+body.leeway-duplex-open #studioStage .audition-panel { display:block !important; }
+body.leeway-duplex-open #studioStage .audition-panel .actions,
+body.leeway-duplex-open #studioStage .audition-panel audio,
+body.leeway-duplex-open #studioStage .audition-panel details:not(.evidence-panel) { display:none !important; }
+body.leeway-duplex-open #studioStage .audition-panel #speechText {
+  display:block;width:100%;min-height:150px;white-space:pre-wrap;
+}
+body.leeway-duplex-open #studioStage .audition-panel .section-title h2::after {
+  content:" · Agent Lee conversation response";color:var(--accent);
+}
+body.leeway-duplex-open .evidence-panel { display:block; }
+body.leeway-duplex-open .channel-rack { display:none; }
+body.leeway-duplex-open #studioStage .audition-panel .evidence-panel { display:block !important; margin-top:12px; }
+body.leeway-duplex-open .channel-rack>.runtime-panel,
+body.leeway-duplex-open .channel-rack>.shared-panel { display:none; }

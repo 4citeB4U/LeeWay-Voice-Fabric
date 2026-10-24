@@ -21,6 +21,10 @@ let active=false;
 let selected=null;
 let lastPublished=null;
 let syncRevision=null;
+let previousAudition=null;
+let evidenceOriginalParent=null;
+let evidenceNextSibling=null;
+let evidencePreviouslyOpen=null;
 function selectedFromStudio(){
  const info=document.getElementById('selectedMeta')?.textContent||'';
  const match=info.match(/kokoro[-_]((?:af|am|bf|bm)_[a-z0-9]+)/i);
@@ -37,6 +41,7 @@ function signal(detail){
 function openUrl(){
  const url=new URL(target);
  if(selected)url.searchParams.set('voice',selected);
+ url.searchParams.set('studio','1');
  standalone.href=url.href;
  return url.href;
 }
@@ -57,6 +62,16 @@ function open(){
   return;
  }
  active=true;
+ const evidence=document.querySelector('.channel-rack .evidence-panel');
+ const audition=document.querySelector('#studioStage .audition-panel');
+ if(evidence && audition){
+  evidenceOriginalParent=evidence.parentNode;
+  evidenceNextSibling=evidence.nextSibling;
+  evidencePreviouslyOpen=evidence.open;
+  audition.append(evidence);
+  evidence.open=true;
+ }
+ previousAudition=document.getElementById('speechText')?.value??null;
  iframe.src=openUrl();
  iframe.hidden=false;
  document.body.classList.add('leeway-duplex-open');
@@ -68,6 +83,21 @@ function close(){
  if(!active)return;
  active=false;
  iframe.src='about:blank';iframe.hidden=true;
+ if(previousAudition!==null){
+  const text=document.getElementById('speechText');
+  if(text)text.value=previousAudition;
+  previousAudition=null;
+ }
+ const evidence=document.querySelector('#studioStage .audition-panel .evidence-panel');
+ if(evidence && evidenceOriginalParent){
+  if(evidencePreviouslyOpen!==null)evidence.open=evidencePreviouslyOpen;
+  if(evidenceNextSibling && evidenceNextSibling.parentNode===evidenceOriginalParent)
+   evidenceOriginalParent.insertBefore(evidence,evidenceNextSibling);
+  else evidenceOriginalParent.append(evidence);
+ }
+ evidenceOriginalParent=null;
+ evidenceNextSibling=null;
+ evidencePreviouslyOpen=null;
  document.body.classList.remove('leeway-duplex-open');
  start.hidden=false;stop.hidden=true;
  message.textContent='Test stopped; the Studio voice selection is preserved.';
@@ -106,5 +136,24 @@ window.addEventListener('message',event=>{
  if(info.kind==='phase'||info.kind==='playout')
    message.textContent='Voice: '+selected+' · Conversation: '+phase;
  signal({active:true,phase,inputRms:rms,kind:info.kind});
+});
+// The source is the active Edge RTC document, with a fixed local origin.
+window.addEventListener('message',event=>{
+ if(!active||event.source!==iframe?.contentWindow||event.origin!==verifiedOrigin)return;
+ const data=event.data;
+ if(!data||data.channel!=='LEEWAY_DUPLEX_STUDIO_OUTPUT_V1'||
+    !['response','evidence'].includes(data.kind)||typeof data.text!=='string')return;
+ const value=data.text.slice(0,1500);
+ if(data.kind==='response'){
+  const field=document.getElementById('speechText');
+  if(field)field.value=value;
+  const state=document.getElementById('renderState');
+  if(state)state.textContent='Agent Lee conversation response shown above · not a generated audition WAV';
+ }else{
+  // Reuse existing Studio evidence infrastructure; no duplicate log.
+  document.dispatchEvent(new CustomEvent('leeway:studio',{detail:{
+    type:'duplex-evidence',observation:value
+  }}));
+ }
 });
 window.addEventListener('pagehide',close);

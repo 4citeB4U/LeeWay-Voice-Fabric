@@ -241,7 +241,9 @@ function startConsole() {
   document.addEventListener('leeway:studio', onStudioEvent);
   function onStudioEvent(event) {
     const detail = event.detail || {};
-    if (!['draft-change','phase'].includes(detail.type)) record(detail.type || 'studio-event', detail);
+    if (detail.type==='duplex-evidence' && typeof detail.observation==='string') {
+      record('duplex · '+detail.observation.slice(0,180), {source:'Edge RTC conversation', observation:detail.observation});
+    } else if (!['draft-change','phase'].includes(detail.type)) record(detail.type || 'studio-event', detail);
     if (detail.type === 'first-audio-ready') $('generationTiming').textContent = `First segment ready · ${detail.latencyMs} ms`;
     if (detail.type === 'generation-complete') $('generationTiming').textContent = `Generated · ${(detail.generationMs / 1000).toFixed(2)} s`;
     updateActivity();
