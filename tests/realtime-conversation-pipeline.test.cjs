@@ -1,0 +1,148 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+
+async function modules() {
+  const [session, conversation] = await Promise.all([
+    import('../src/realtime-voice-session.mjs'),
+    import('../src/realtime-conversation-pipeline.mjs'),
+  ]);
+  return {...session, ...conversation};
+}
+
+async function waitFor(predicate, message = 'condition') {
+  const deadline = Date.now() + 1000;
+  while (!predicate()) {
+    if (Date.now() >= deadline) assert.fail(`Timed out waiting for ${message}.`);
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+}
+
+function finalFrame(session, segmentId, text) {
+  return session.frame('transcript.final', {segmentId, revision: 1, text}, {
+    direction: 'downstream', class: 'data', interruptible: false,
+  });
+}
+
+test('a committed transcript crosses both governance gates before selected voice playout', async () => {
+  const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
+  const calls = [];
+  const output = {
+    async speak({text, turnId}) { calls.push(['speak', text, turnId]); return {renderedText: text}; },
+    async stop() { calls.push(['stop']); },
+  };
+  const processor = createGovernedConversationProcessor({
+    authorizeInput: async ({text}) => { calls.push(['input-gate', text]); return {allowed: true}; },
+    generateResponse: async ({text, history}) => {
+      calls.push(['generate', text, history.map(item => item.role).join(',')]);
+      return `Agent Lee heard: ${text}`;
+    },
+    authorizeResponse: async ({response}) => { calls.push(['response-gate', response]); return true; },
+    output,
+  });
+  const session = new RealtimeVoiceSession({sessionId: 'governed-turn', processors: [processor]});
+  await session.dispatch(finalFrame(session, 'segment-1', 'Hello Lee'));
+  await waitFor(() => calls.some(call => call[0] === 'speak'), 'voice playout');
+  assert.deepEqual(calls, [
+    ['input-gate', 'Hello Lee'],
+    ['generate', 'Hello Lee', 'user'],
+    ['response-gate', 'Agent Lee heard: Hello Lee'],
+    ['speak', 'Agent Lee heard: Hello Lee', 'turn-segment-1'],
+  ]);
+  assert.deepEqual(processor.history().map(({role, content, evidence}) => ({role, content, evidence})), [
+    {role: 'user', content: 'Hello Lee', evidence: 'transcript.final'},
+    {role: 'assistant', content: 'Agent Lee heard: Hello Lee', evidence: 'audio.rendered'},
+  ]);
+});
+
+test('response governance can reject generated text without invoking voice output', async () => {
+  const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
+  let spoken = 0;
+  const events = [];
+  const processor = createGovernedConversationProcessor({
+    authorizeInput: async () => true,
+    generateResponse: async () => 'unapproved response',
+    authorizeResponse: async () => ({allowed: false, reason: 'policy'}),
+    output: {speak: async () => { spoken += 1; }, stop: async () => {}},
+    onEvent: event => events.push(event),
+  });
+  const session = new RealtimeVoiceSession({sessionId: 'blocked-response', processors: [processor]});
+  await session.dispatch(finalFrame(session, 'segment-1', 'request'));
+  await waitFor(() => events.some(event => event.type === 'conversation.response.blocked'), 'governance rejection');
+  assert.equal(spoken, 0);
+  assert.deepEqual(processor.history().map(item => item.role), ['user']);
+});
+
+test('barge-in aborts generation and suppresses stale response output', async () => {
+  const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
+  let generationStarted = false;
+  let spoken = 0;
+  let stops = 0;
+  const processor = createGovernedConversationProcessor({
+    authorizeInput: async () => true,
+    generateResponse: async ({signal}) => {
+      generationStarted = true;
+      await new Promise((resolve, reject) => {
+        signal.addEventListener('abort', () => reject(signal.reason), {once: true});
+      });
+      return 'stale';
+    },
+    authorizeResponse: async () => true,
+    output: {speak: async () => { spoken += 1; }, stop: async () => { stops += 1; }},
+  });
+  const session = new RealtimeVoiceSession({sessionId: 'generation-barge-in', processors: [processor]});
+  await session.dispatch(finalFrame(session, 'segment-1', 'long request'));
+  await waitFor(() => generationStarted, 'generation start');
+  await session.interrupt('speechstart');
+  await waitFor(() => stops === 1, 'output stop');
+  assert.equal(spoken, 0);
+  assert.equal(processor.history().some(item => item.role === 'assistant'), false);
+});
+
+test('barge-in during playout does not commit unheard assistant text and a new turn recovers', async () => {
+  const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
+  const spoken = [];
+  let firstSignal;
+  let stops = 0;
+  const output = {
+    async speak({text, signal}) {
+      spoken.push(text);
+      if (spoken.length > 1) return {renderedText: text};
+      firstSignal = signal;
+      await new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), {once: true}));
+    },
+    async stop() { stops += 1; },
+  };
+  const processor = createGovernedConversationProcessor({
+    authorizeInput: async () => true,
+    generateResponse: async ({text}) => `reply:${text}`,
+    authorizeResponse: async () => true,
+    output,
+  });
+  const session = new RealtimeVoiceSession({sessionId: 'playout-barge-in', processors: [processor]});
+  await session.dispatch(finalFrame(session, 'segment-1', 'first'));
+  await waitFor(() => firstSignal, 'first playout');
+  await session.interrupt('speechstart');
+  await waitFor(() => stops === 1, 'playout stop');
+  await session.dispatch(finalFrame(session, 'segment-2', 'second'));
+  await waitFor(() => spoken.length === 2 && processor.history().some(item => item.content === 'reply:second'), 'recovered turn');
+  assert.deepEqual(spoken, ['reply:first', 'reply:second']);
+  assert.equal(processor.history().some(item => item.content === 'reply:first'), false);
+  assert.equal(processor.history().some(item => item.content === 'reply:second' && item.evidence === 'audio.rendered'), true);
+});
+
+test('Voice SDK output rejects an unapproved fallback before speech', async () => {
+  const {createVoiceSdkOutput} = await modules();
+  let speaks = 0;
+  const client = {
+    async connect() {},
+    async selectVoice() { return {selectedVoiceId: 'agent-lee-voice-one'}; },
+    async prepare() { return {selectedVoiceId: 'kokoro-am_michael'}; },
+    async status() { return {ready: true, selectedVoiceId: 'kokoro-am_michael', provider: 'kokoro'}; },
+    async speak() { speaks += 1; },
+    async stop() {},
+  };
+  const output = createVoiceSdkOutput({client, voicePackageId: 'agent-lee-voice-one', provider: 'chatterbox'});
+  await assert.rejects(output.prepare(), /instead of required/);
+  assert.equal(speaks, 0);
+});
+

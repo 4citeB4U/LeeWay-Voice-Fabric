@@ -153,3 +153,27 @@ test('recognition restart creates new segment IDs and abort ignores a late callb
   await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(seen, ['dictation-1-0', 'dictation-2-0']);
 });
+
+test('speechstart is exposed immediately for an out-of-band barge-in decision', async () => {
+  const {bindSpeechRecognitionToSession} = await loadModule();
+  const {RealtimeVoiceSession} = await loadSession();
+  const handlers = new Map();
+  const recognition = {
+    addEventListener(name, handler) { handlers.set(name, handler); },
+    removeEventListener(name) { handlers.delete(name); },
+    start() {},
+    abort() {},
+  };
+  const session = new RealtimeVoiceSession({sessionId: 'edge-speechstart'});
+  let starts = 0;
+  const bridge = bindSpeechRecognitionToSession({
+    session,
+    recognition,
+    onSpeechStart: () => { starts += 1; },
+  });
+  bridge.start();
+  handlers.get('speechstart')({type: 'speechstart'});
+  assert.equal(starts, 1);
+  bridge.stop({abort: true});
+  assert.equal(handlers.has('speechstart'), false);
+});

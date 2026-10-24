@@ -23,10 +23,35 @@ Required progression:
    behavior. Source publication and successful unit tests are not this gate.
 
 The separate Web Speech recognizer does **not** prove that captured Edge RTC PCM
-was transcribed, and a dictation display does not provide Agent Lee reasoning or
-speech output. Keep the existing live-integration hold until its prerequisites
-are satisfied. No Formula task evaluation, production Veritas receipt or
-Learning Ledger update is claimed by this candidate.
+was transcribed. The Creator reported that the local dictation fixture worked on
+2026-10-24; that is user-attested physical-browser evidence, not an independent
+production receipt. Keep the existing live-integration hold through the
+conversation, interruption, acoustic-feedback and deployment gates. No Formula
+task evaluation, production Veritas receipt or Learning Ledger update is claimed
+by this candidate.
+
+## Governed conversation candidate
+
+`src/realtime-conversation-pipeline.mjs` adds the next held integration boundary:
+
+- committed transcripts enqueue interruptible turn work rather than performing
+  generation inside the protected transcript handler;
+- input and response gates are explicit required functions;
+- generation, response admission and playout share the session generation
+  `AbortSignal`;
+- interruption stops output out of band and invalidates stale generation;
+- assistant history is committed only after the output adapter reports completed
+  software playout;
+- the Voice SDK adapter requires the selected Voice Package ID before and after
+  playout and rejects an unapproved provider fallback;
+- voice preparation is independent from microphone startup, with explicit
+  unloading available.
+
+The Edge RTC candidate uses the existing deterministic `respondToInput()` engine
+behind bounded local input/output policy gates. That proves the wiring, not
+general Agent Lee reasoning, canonical Formula evaluation, human hearing, echo
+cancellation or production-quality full duplex. The physical conversation and
+barge-in gate remains pending.
 
 ## First gate
 

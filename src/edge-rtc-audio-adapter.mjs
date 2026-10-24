@@ -195,6 +195,7 @@ export function bindSpeechRecognitionToSession({
   segmentPrefix = 'dictation',
   onError,
   onFinal,
+  onSpeechStart,
 } = {}) {
   assertObject(session, 'session');
   assertFunction(session.frame, 'session.frame');
@@ -268,6 +269,12 @@ export function bindSpeechRecognitionToSession({
     finals.clear();
     installed = true;
     unbind = [installHandler(recognition, 'result', event => emitResult(event, state))];
+    unbind.push(installHandler(recognition, 'speechstart', event => {
+      if (!installed || state !== activeRun || state.aborted) return;
+      try { onSpeechStart?.(event); } catch (error) {
+        try { onError?.(error, event); } catch {}
+      }
+    }));
     const errorHandler = event => {
       const error = new Error(`Speech recognition error: ${event?.error ?? 'unknown'}`);
       try { onError?.(error, event); } catch {}
