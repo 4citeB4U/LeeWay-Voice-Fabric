@@ -4,7 +4,7 @@
   const REVISION='3cab09af388d3f02bba43443fce88c1f4525ac43';
   const sourceURL=typeof document!=='undefined'?document.currentScript?.src:null;
   const DEFAULT_REFERENCE='https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav';
-  const FABRIC_BUILD='20261024-chatterbox-turbo-conversation';
+  const FABRIC_BUILD='20261024-chatterbox-turbo-quality1';
   const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v='+FABRIC_BUILD,sourceURL).href:'/src/chatterbox.worker.js?v='+FABRIC_BUILD;
   const CACHE_MODULE_URL=sourceURL?new URL('voice-model-cache.js?v='+FABRIC_BUILD,sourceURL).href:'/src/voice-model-cache.js?v='+FABRIC_BUILD;
   const NATIVE_MODULE_URL=sourceURL?new URL('native-decoder-client.js?v='+FABRIC_BUILD,sourceURL).href:'/src/native-decoder-client.js?v='+FABRIC_BUILD;
