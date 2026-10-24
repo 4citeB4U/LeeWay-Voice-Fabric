@@ -7,7 +7,7 @@
 
 | Component | Canonical repository | Contract |
 |---|---|---|
-| Spatial audio Studio | LeeWay Voice Fabric | Preserve current UI; lazy-open live conversation |
+| Spatial audio Studio | LeeWay Voice Fabric | Preserve the existing 3D sphere and wave/tuning UI; show one inline live conversation workspace |
 | PCM acquisition | Edge RTC src/voice/audio.ts | Single getUserMedia track with browser AEC/NS/AGC |
 | Speech recognition | Voice Fabric src/edge-rtc-audio-adapter.mjs | Bind the SAME live audio track, reject default-mic fallback |
 | Interrupt controller | Edge RTC src/voice/realtime-conversation.ts | Near-end VAD, echo exclusion, stop TTS and stale turns |
@@ -40,8 +40,10 @@ Confirmed user barge-in stops audio and cancels outdated turns.
    server at 8897 and Edge RTC Vite at 5173. Set
    LEEWAY_ENABLE_CONVERSATION_FIXTURE=1 and
    LEEWAY_VOICE_FABRIC_DEV_ORIGIN=http://127.0.0.1:8897.
-7. In existing studio.html, expand Live duplex conversation, then click
-   Open conversation. Also available as a standalone localhost page.
+7. In the existing Studio, use the single **Live conversation** module below
+   the original 3D sphere and click **Activate live voice test**. The sphere
+   remains visible and responds to the observed conversation state. The test
+   also remains available as a standalone localhost application.
 8. Confirm capture evidence reports shared track and AEC enabled.
    Listen on physical speakers, test self-echo and natural interruption.
    A test pass cannot substitute for acoustic acceptance.
@@ -87,13 +89,27 @@ owner-specific voice/tuning changes, use an additive deployment:
     npm run voice:duplex:deploy -- "E:\LeeWay-Work\pc-consciousness-live\voice"
 
 The command checks exact Studio anchors, takes an immutable backup under
-the target's .leeway-voice-backups directory, inserts only the new Live
-Duplex panel, and copies one standalone adapter script. If an identical
-integration is already installed, it exits with ALREADY_INTEGRATED;
-different existing code fails closed rather than being overwritten.
+the target's .leeway-voice-backups directory, inserts one inline live
+conversation workspace beside the original sphere, and installs the scoped
+adapter and CSS. Repeating the same deployment returns ALREADY_INTEGRATED.
+Unexpected edits cause a fail-closed review rather than silent replacement.
 
-The operator may then use the original Studio host, such as
-http://127.0.0.1:8877/studio.html, keeping its existing local Kokoro
-provider/API and voice-control layout while exposing the standalone
-conversation engine in a collapsed panel. Verify its voice synthesis
-provider and physical barge-in separately before production use.
+The original Studio remains at http://127.0.0.1:8877/studio.html.
+Its separate microphone capture and audition controls are temporarily
+suppressed while the embedded test owns microphone capture, and restored
+on exit. The voice sphere receives observed speaking/listening state plus
+actual post-AEC microphone RMS from Edge RTC. Its speaking pulse is a
+state-derived animation, NOT a measured outgoing speaker FFT. No second
+microphone is opened for sphere animation.
+
+The previous fullscreen voice-test overlay, header launcher, and duplicate
+right-rack test have been removed. A single live conversation section
+below the existing sphere offers the same Kokoro selector, Qwen/Machine
+Consciousness routing, transcripts, evidence log and continuous listening.
+When expanded on a desktop screen, the sphere and conversation occupy
+adjacent columns. All original speaker library and tuning controls remain
+intact and return after the live conversation stops.
+
+Verify speaker acoustic quality and human barge-in separately before
+production use. Voice Fabric Studio telemetry is not a production admission
+or evidence that physical speaker output was measured.

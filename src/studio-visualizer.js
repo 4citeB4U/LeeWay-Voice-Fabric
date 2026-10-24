@@ -240,7 +240,13 @@ export async function createStudioVisualizer({canvas, inputCanvas, outputCanvas,
     if (timestamp - lastFrame < interval) { schedule(); return; }
     lastFrame = timestamp;
     resize(); sampleAudio();
-    const time = reducedMotion ? 0 : timestamp * .001, signal = average(combinedBands);
+    const time = reducedMotion ? 0 : timestamp * .001;
+    const measuredSignal = average(combinedBands);
+    // State-derived orb motion is NOT a claim about measured speaker RMS.
+    // Real acoustic FFT bars still come exclusively from analyser samples.
+    const activityPulse = phase === 'speaking' && !reducedMotion ?
+      0.20 + 0.08 * (0.5+0.5*Math.sin(time*9)) : 0;
+    const signal = Math.max(measuredSignal,activityPulse);
     const palette = PALETTES[appearance.theme];
     spectrum(inputCanvas, inputContext, inputBands, palette.input);
     spectrum(outputCanvas, outputContext, outputBands, palette.output);
