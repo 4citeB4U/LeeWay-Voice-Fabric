@@ -193,6 +193,7 @@ export function bindSpeechRecognitionToSession({
   session,
   recognition,
   segmentPrefix = 'dictation',
+  restartDelayMs = 250,
   onError,
   onFinal,
   onSpeechStart,
@@ -202,6 +203,9 @@ export function bindSpeechRecognitionToSession({
   assertFunction(session.dispatch, 'session.dispatch');
   assertObject(recognition, 'recognition');
   assertString(segmentPrefix, 'segmentPrefix');
+  if (!Number.isFinite(restartDelayMs) || restartDelayMs < 0 || restartDelayMs > 5_000) {
+    throw new TypeError('restartDelayMs must be between 0 and 5000 milliseconds.');
+  }
 
   const revisions = new Map();
   const signatures = new Map();
@@ -211,6 +215,9 @@ export function bindSpeechRecognitionToSession({
   let installed = false;
   let started = false;
   let stopping = false;
+  let wantRunning = false;
+  let restartTimer = null;
+  let restartAttempts = 0;
   let unbind = [];
 
   const emitResult = (event, state) => {
@@ -224,6 +231,7 @@ export function bindSpeechRecognitionToSession({
       const alternative = result?.[0];
       const text = typeof alternative?.transcript === 'string' ? alternative.transcript : '';
       if (!text.trim()) continue;
+      restartAttempts = 0;
       const final = Boolean(result.isFinal);
       const signature = `${final ? 'final' : 'partial'}\0${text}`;
       if (signatures.get(index) === signature) continue;
@@ -281,7 +289,21 @@ export function bindSpeechRecognitionToSession({
     };
     unbind.push(installHandler(recognition, 'error', errorHandler));
     unbind.push(installHandler(recognition, 'end', () => {
-      if (state === activeRun) unbindRecognition();
+      if (state !== activeRun) return;
+      const restart = started && !stopping && wantRunning;
+      unbindRecognition();
+      if (restart) {
+        const delay = Math.min(restartDelayMs * (2 ** Math.min(restartAttempts, 4)), 4_000);
+        restartAttempts += 1;
+        restartTimer = setTimeout(() => {
+          restartTimer = null;
+          if (!wantRunning) return;
+          try { start(); } catch (error) {
+            wantRunning = false;
+            try { onError?.(error); } catch {}
+          }
+        }, delay);
+      }
     }));
   };
 
@@ -295,12 +317,18 @@ export function bindSpeechRecognitionToSession({
   const start = () => {
     if (stopping) throw new Error('Speech recognition is still stopping; wait for its end event.');
     if (started) return;
+    wantRunning = true;
+    clearTimeout(restartTimer);
+    restartTimer = null;
     bind();
     try { recognition.start?.(); started = true; }
-    catch (error) { unbindRecognition(); throw error; }
+    catch (error) { wantRunning = false; unbindRecognition(); throw error; }
   };
 
   const stop = ({abort = false} = {}) => {
+    wantRunning = false;
+    clearTimeout(restartTimer);
+    restartTimer = null;
     if (!installed) return;
     if (abort) {
       activeRun.aborted = true;
@@ -319,7 +347,7 @@ export function bindSpeechRecognitionToSession({
     bind,
     start,
     stop,
-    unbind: () => { if (activeRun) activeRun.aborted = true; unbindRecognition(); },
+    unbind: () => { wantRunning = false; clearTimeout(restartTimer); restartTimer = null; if (activeRun) activeRun.aborted = true; unbindRecognition(); },
     get bound() { return started && !stopping; },
   });
 }

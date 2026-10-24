@@ -166,6 +166,8 @@ export function createGovernedConversationProcessor({
   output,
   onEvent,
   maxHistoryMessages = 40,
+  wakeWords = [],
+  wakeTimeoutMs = 30_000,
 } = {}) {
   assertFunction(generateResponse, 'generateResponse');
   assertFunction(authorizeInput, 'authorizeInput');
@@ -176,10 +178,19 @@ export function createGovernedConversationProcessor({
   if (!Number.isInteger(maxHistoryMessages) || maxHistoryMessages < 2) {
     throw new TypeError('maxHistoryMessages must be an integer of at least 2.');
   }
+  if (!Array.isArray(wakeWords) || wakeWords.some(word => typeof word !== 'string' || !word.trim())) {
+    throw new TypeError('wakeWords must be an array of non-empty phrases.');
+  }
+  if (!Number.isFinite(wakeTimeoutMs) || wakeTimeoutMs < 1_000) {
+    throw new TypeError('wakeTimeoutMs must be at least 1000 milliseconds.');
+  }
 
   const history = [];
   const acceptedSegments = new Set();
   const activeTurns = new Set();
+  const wakePhrases = wakeWords.map(phrase => phrase.trim().toLocaleLowerCase()).sort((a, b) => b.length - a.length);
+  let awakeUntil = 0;
+  let wakeTimer;
 
   const event = detail => emitSafely(onEvent, detail);
   const launchTurn = (turnId, stage, signal, run) => {
@@ -198,6 +209,7 @@ export function createGovernedConversationProcessor({
     get responding() { return activeTurns.size > 0; },
     get playing() { return output.playing === true; },
     history: snapshot,
+    dispose() { clearTimeout(wakeTimer); awakeUntil = 0; },
     async handle(frame, context) {
       if (frame.kind === 'interruption') {
         event({type: 'conversation.interrupted', epoch: frame.epoch, turnId: frame.turnId, reason: frame.payload?.reason});
@@ -207,10 +219,31 @@ export function createGovernedConversationProcessor({
 
       if (frame.kind === 'transcript.final') {
         const segmentId = frame.payload?.segmentId;
-        const text = String(frame.payload?.text ?? '').trim();
+        let text = String(frame.payload?.text ?? '').trim();
         assertString(segmentId, 'transcript segmentId');
         if (!text || acceptedSegments.has(segmentId)) return;
         acceptedSegments.add(segmentId);
+        if (wakePhrases.length) {
+          const normalized = text.toLocaleLowerCase().replace(/[.,!?;:]+/g, ' ').replace(/\s+/g, ' ').trim();
+          if (Date.now() >= awakeUntil) {
+            const matched = wakePhrases.find(phrase => normalized === phrase || normalized.startsWith(`${phrase} `));
+            if (!matched) {
+              event({type: 'conversation.wake_word.ignored', segmentId, text});
+              return;
+            }
+            text = text.slice(matched.length).replace(/^[\s,.;:!?-]+/, '').trim();
+            event({type: 'conversation.wake_word.heard', segmentId, phrase: matched});
+          }
+          awakeUntil = Date.now() + wakeTimeoutMs;
+          clearTimeout(wakeTimer);
+          wakeTimer = setTimeout(() => {
+            if (Date.now() >= awakeUntil) {
+              awakeUntil = 0;
+              event({type: 'conversation.wake_word.sleep'});
+            }
+          }, wakeTimeoutMs + 5);
+          if (!text) return;
+        }
         const turnId = frame.turnId ?? `turn-${segmentId}`;
         event({type: 'conversation.turn.committed', turnId, segmentId, text, epoch: context.session.epoch});
         await context.emit(context.session.frame('conversation.turn.requested', {segmentId, text}, {

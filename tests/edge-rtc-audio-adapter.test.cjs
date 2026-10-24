@@ -118,7 +118,7 @@ test('graceful recognition stop accepts its final result before the end event', 
   assert.equal(reducer.finalizedText(), 'final while stopping');
 });
 
-test('recognition restart creates new segment IDs and abort ignores a late callback', async () => {
+test('recognition automatically restarts after browser end and abort ignores a late callback', async () => {
   const {bindSpeechRecognitionToSession} = await loadModule();
   const {RealtimeVoiceSession} = await loadSession();
   const seen = [];
@@ -136,13 +136,15 @@ test('recognition restart creates new segment IDs and abort ignores a late callb
       if (frame.kind === 'transcript.final') seen.push(frame.payload.segmentId);
     }}],
   });
-  const bridge = bindSpeechRecognitionToSession({session, recognition});
+  let recognitionStarts = 0;
+  recognition.start = () => { recognitionStarts += 1; };
+  const bridge = bindSpeechRecognitionToSession({session, recognition, restartDelayMs: 0});
   bridge.start();
   handlers.get('result')({resultIndex: 0, results: [{isFinal: true, 0: {transcript: 'first'}}]});
   handlers.get('end')();
-  await new Promise(resolve => setImmediate(resolve));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(recognitionStarts, 2, 'an unexpected browser end restarts recognition while listening is still requested');
 
-  bridge.start();
   const late = handlers.get('result');
   handlers.get('result')({resultIndex: 0, results: [{isFinal: true, 0: {transcript: 'second'}}]});
   bridge.stop({abort: true});

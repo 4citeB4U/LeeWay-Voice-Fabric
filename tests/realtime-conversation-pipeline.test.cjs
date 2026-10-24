@@ -54,6 +54,29 @@ test('a committed transcript crosses both governance gates before selected voice
   ]);
 });
 
+test('wake phrases activate a bounded hands-free turn and unrelated speech stays gated', async () => {
+  const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
+  const inputs = [];
+  const events = [];
+  const processor = createGovernedConversationProcessor({
+    wakeWords: ['agent lee', 'yo agent'],
+    wakeTimeoutMs: 1_000,
+    authorizeInput: async ({text}) => { inputs.push(text); return true; },
+    generateResponse: async ({text}) => `heard ${text}`,
+    authorizeResponse: async () => true,
+    output: {speak: async () => ({}), stop: async () => {}},
+    onEvent: event => events.push(event),
+  });
+  const session = new RealtimeVoiceSession({sessionId: 'wake-word', processors: [processor]});
+  await session.dispatch(finalFrame(session, 'ambient', 'what time is it'));
+  await session.dispatch(finalFrame(session, 'wake', 'Agent Lee, what time is it?'));
+  await waitFor(() => inputs.length === 1, 'wake-gated turn');
+  assert.deepEqual(inputs, ['what time is it?']);
+  assert.ok(events.some(event => event.type === 'conversation.wake_word.ignored'));
+  assert.ok(events.some(event => event.type === 'conversation.wake_word.heard' && event.phrase === 'agent lee'));
+  processor.dispose();
+});
+
 test('response governance can reject generated text without invoking voice output', async () => {
   const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
   let spoken = 0;
