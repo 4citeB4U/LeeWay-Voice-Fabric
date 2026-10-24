@@ -1,0 +1,22 @@
+{
+  "name": "three",
+  "version": "0.160.1",
+  "repository": "https://github.com/mrdoob/three.js",
+  "license": "MIT",
+  "tarball": "https://registry.npmjs.org/three/-/three-0.160.1.tgz",
+  "tarballIntegrity": "sha512-Bgl2wPJypDOZ1stAxwfWAcJ0WQf7QzlptsxkjYiURPz+n5k4RBDLsq+6f9Y75TYxn6aHLcWz+JNmwTOXWrQTBQ==",
+  "retrievedUtc": "2026-10-07T03:41:39.980684+00:00",
+  "files": {
+    "three.module.min.js": {
+      "upstreamPath": "build/three.module.min.js",
+      "bytes": 670681,
+      "sha256": "3e690ac7d180b0aadf0891bea39eec643e29e2d3e75c99b18689518665f69ba6"
+    },
+    "LICENSE": {
+      "upstreamPath": "LICENSE",
+      "bytes": 1081,
+      "sha256": "852e0e8699169bf9f6fdc6bda3e682d078dcbc738b5d33e74df594721bff271d"
+    }
+  },
+  "purpose": "Pinned local browser visualization dependency; no CDN request at runtime."
+}

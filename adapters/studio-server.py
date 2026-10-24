@@ -21,6 +21,7 @@ from urllib.request import Request, urlopen
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from local_clone import CloneWorker
+from voice_selection_owner import handle_owner_selection, private_selection_path
 
 LOCAL_VOICES = [('af_alloy', 'Alloy', 'female'), ('af_aoede', 'Aoede', 'female'), ('af_bella', 'Bella', 'female'), ('af_heart', 'Heart', 'female'), ('af_jessica', 'Jessica', 'female'), ('af_kore', 'Kore', 'female'), ('af_nicole', 'Nicole', 'female'), ('af_nova', 'Nova', 'female'), ('af_river', 'River', 'female'), ('af_sarah', 'Sarah', 'female'), ('af_sky', 'Sky', 'female'), ('am_adam', 'Adam', 'male'), ('am_echo', 'Echo', 'male'), ('am_eric', 'Eric', 'male'), ('am_fenrir', 'Fenrir', 'male'), ('am_liam', 'Liam', 'male'), ('am_michael', 'Michael', 'male'), ('am_onyx', 'Onyx', 'male'), ('am_puck', 'Puck', 'male'), ('am_santa', 'Santa', 'male'), ('bf_alice', 'Alice', 'female'), ('bf_emma', 'Emma', 'female'), ('bf_isabella', 'Isabella', 'female'), ('bf_lily', 'Lily', 'female'), ('bm_daniel', 'Daniel', 'male'), ('bm_fable', 'Fable', 'male'), ('bm_george', 'George', 'male'), ('bm_lewis', 'Lewis', 'male')]
 KOKORO_URL = os.environ.get('LEEWAY_KOKORO_URL', 'http://127.0.0.1:8878').rstrip('/')
@@ -50,6 +51,16 @@ def local_status():
         except Exception:
             xtts = {'ready':False,'message':'Local clone service unavailable.'}
     return {'kokoro':kokoro,'xtts':xtts}
+
+def shared_provider_ready(profile):
+    """Check the selected existing provider before publishing its shared binding."""
+    if profile.get('provider') == 'kokoro':
+        try:
+            state = local_request(KOKORO_URL, '/status')
+            return state.get('ready') is True and profile.get('voiceId') in state.get('voices', [])
+        except Exception:
+            return False
+    return profile.get('id') == 'agent-lee-voice-one' and local_status().get('xtts', {}).get('ready') is True
 
 MAX_BODY = 32 * 1024
 MAX_PROVIDER_RESPONSE = 24 * 1024 * 1024
@@ -115,6 +126,22 @@ def voice_metadata(item):
 
 
 class StudioHandler(SimpleHTTPRequestHandler):
+    def send_head(self):
+        # A persistent desktop WebView must fetch the current Studio controls.
+        path = unquote(urlsplit(self.path).path)
+        self._studio_control_response = path in ("/", "/index.html", "/studio.html") or (
+            path.startswith("/src/") and Path(path).suffix.lower() in (".js", ".mjs", ".css")
+        )
+        try:
+            return super().send_head()
+        finally:
+            self._studio_control_response = False
+
+    def end_headers(self):
+        if getattr(self, "_studio_control_response", False):
+            self.send_header("Cache-Control", "no-store")
+        super().end_headers()
+
     def log_message(self, *_args):
         # Paths/query strings and provider text must not become server logs.
         pass
@@ -177,6 +204,8 @@ class StudioHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if handle_owner_selection(self, shared_provider_ready):
+            return
         parsed = urlsplit(self.path)
         is_api = parsed.path.startswith("/api/")
         if not self._guard(api=is_api):
@@ -234,6 +263,9 @@ class StudioHandler(SimpleHTTPRequestHandler):
         if any(p.startswith(".") or p == "__pycache__" for p in target.relative_to(root).parts):
             self._json(403, {"error": "File is not accessible."})
             return False
+        if private_selection_path(root, target):
+            self._json(403, {"error": "File is not accessible."})
+            return False
         return True
 
     def list_directory(self, _path):
@@ -271,6 +303,8 @@ class StudioHandler(SimpleHTTPRequestHandler):
             self._json(502, {"error": str(exc)})
 
     def do_POST(self):
+        if handle_owner_selection(self, shared_provider_ready):
+            return
         if not self._guard(api=True):
             return
         if urlsplit(self.path).path == '/api/local/synthesize':

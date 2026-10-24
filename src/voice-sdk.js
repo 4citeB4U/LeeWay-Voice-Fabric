@@ -62,3 +62,32 @@ export class LeeWayVoiceClient {
   destroy(){this.destroyed=true;clearTimeout(this._connectionTimer);this._connectionTimer=null;this._rejectConnection?.(new Error('Voice client destroyed.'));this._rejectConnection=null;window.removeEventListener('message',this._onMessage);this.frame?.remove();this.frame=null;for(const p of this.pending.values()){clearTimeout(p.timer);p.reject(new Error('Voice client destroyed.'));}this.pending.clear();}
 }
 export const createLeeWayVoice=options=>new LeeWayVoiceClient(options);
+
+/* REGION: LEEWAY.VOICE.SDK; TAG: EXISTING_PIPELINE_BOUND_TRANSPORT
+WHO: Voice Fabric. WHAT: Connect the existing speech class to its Runtime transport.
+WHEN: Agent UI startup. WHERE: same authorized origin; no independent UI speaker or queue.
+WHY: Native worker rendering must use the same canonical speech pipeline.
+HOW: Existing LeeWayBrowserVoice + LeeWaySpeechStream, exact Voice-owned selection. LICENSE: MIT */
+export function createLeeWayBoundVoice({runtimeOrigin,onState=()=>{},onError=()=>{}}={}){
+ const origin=new URL(runtimeOrigin).origin;
+ if(origin!==globalThis.location?.origin)throw Error('VOICE_RUNTIME_SAME_ORIGIN_REQUIRED');
+ if(typeof globalThis.LeeWayBrowserVoice?.prototype.bindProvider!=='function')throw Error('CANONICAL_VOICE_PIPELINE_NOT_LOADED');
+ const voice=new globalThis.LeeWayBrowserVoice({onUnavailable:onError});
+ async function json(route,body,signal){
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),body===undefined?10000:120000);
+  const cancel=()=>controller.abort();signal?.addEventListener('abort',cancel,{once:true});if(signal?.aborted)cancel();
+  try{const r=await fetch(origin+route,{method:body===undefined?'GET':'POST',credentials:'same-origin',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
+   const text=await r.text();if(text.length>16000000)throw Error('VOICE_RESPONSE_LIMIT');const value=JSON.parse(text);if(!r.ok)throw Error(value.error||'VOICE_TRANSPORT_UNAVAILABLE');return value;
+  }finally{clearTimeout(timer);signal?.removeEventListener('abort',cancel);}
+ }
+ voice.bindProvider({resolveSelection:async()=>(await json('/voice/binding')).voiceBinding,render:async({text,signal})=>(await json('/voice/segment',{text},signal)).voice});
+ return Object.freeze({
+  prepare:()=>voice.load(),
+  speak:text=>voice.speak(String(text),{onState}),
+  createStream:()=>new globalThis.LeeWaySpeechStream(),
+  speakStream:(stream,options={})=>voice.speakStream(stream,{...options,onState}),
+  stop:()=>{voice.stop();onState('Stopped');},
+  metrics:()=>({events:globalThis.LeeWayVoiceMetrics.snapshot(),binding:voice.boundSelection,authority:'LEEWAY_VOICE_FABRIC'}),
+  dispose:()=>voice.dispose()
+ });
+}

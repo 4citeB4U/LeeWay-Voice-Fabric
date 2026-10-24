@@ -1,0 +1,12 @@
+$ErrorActionPreference='Stop'
+$p='E:\LeeWay-Work\pc-consciousness-live\runtime\machine-consciousness\carrier-server.mjs'
+$s=[IO.File]::ReadAllText($p)
+$import="import {applyPersonaDelivery,speechReceipt,sha256 as voiceSha256} from '../../voice/runtime/persona-voice-gate.mjs';"
+if(-not $s.Contains($import)){$s=$s.Replace("import http from 'node:http';",$import+[Environment]::NewLine+"import http from 'node:http';")}
+$s=$s.Replace("let ACTIVE_VOICE=loadVoiceBinding();","let ACTIVE_VOICE=loadVoiceBinding();"+[Environment]::NewLine+"const EMPLOYEE_BINDINGS=JSON.parse(fs.readFileSync(new URL('../../voice/runtime/employee-voice-bindings.v1.json',import.meta.url),'utf8'));const AGENT_VOICE_BINDING=EMPLOYEE_BINDINGS.bindings['agent-lee'];")
+$old="if(req.method==='POST'&&['/respond','/speak'].includes(u.pathname)){let b='';for await(const c of req){b+=c;if(b.length>10000)throw new Error('REQUEST_TOO_LARGE')}const d=JSON.parse(b||'{}');if(typeof d.text!=='string'||!d.text.trim())return json(res,400,{error:'text required'});const response=await respond(d.text);if(u.pathname==='/respond')return json(res,200,response);return json(res,200,{response,voice:await speak(response.text)})}"
+$new="if(req.method==='POST'&&['/respond','/speak'].includes(u.pathname)){let b='';for await(const c of req){b+=c;if(b.length>10000)throw new Error('REQUEST_TOO_LARGE')}const d=JSON.parse(b||'{}');if(typeof d.text!=='string'||!d.text.trim())return json(res,400,{error:'text required'});const response=await respond(d.text);const personaDelivery=applyPersonaDelivery({binding:AGENT_VOICE_BINDING,text:response.text,intent:response.intent});if(personaDelivery.state!=='VERIFIED')return json(res,409,{error:'PERSONA_DELIVERY_BLOCKED',personaDelivery});response.text=personaDelivery.text;response.personaDelivery=personaDelivery;if(u.pathname==='/respond')return json(res,200,response);const voice=await speak(response.text);const audioHash=voice.audioContent?crypto.createHash('sha256').update(Buffer.from(voice.audioContent,'base64')).digest('hex'):null;const speech=speechReceipt({binding:{...AGENT_VOICE_BINDING,voicePackageId:voice.voicePackageId},provider:voice.provider,body:d.body||'pc-primary',textHash:voiceSha256(response.text),audioHash,personaReceiptHash:personaDelivery.personaReceiptHash});return json(res,200,{response,voice,speechReceipt:speech})}"
+if(-not $s.Contains($old)){throw 'speak route block not found'}
+$s=$s.Replace($old,$new)
+[IO.File]::WriteAllText($p,$s,(New-Object Text.UTF8Encoding($false)))
+node --check $p

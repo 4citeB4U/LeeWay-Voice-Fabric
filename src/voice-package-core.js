@@ -1,3 +1,4 @@
+import {normalizeTuning} from './studio-audio.js';
 const PROVIDER_REFERENCE='https://huggingface.co/onnx-community/chatterbox-ONNX/resolve/3cab09af388d3f02bba43443fce88c1f4525ac43/default_voice.wav';
 const PROVIDER_HASH='3ebc531cdaba358a327099c1c4f0448026719957bcf4d8e9868767f227e02f4e';
 export const BUILTIN_VOICE_PACKAGES=[{
@@ -158,7 +159,9 @@ export function resolveAgentVoiceSelection({bindings,catalog,agentId='agent-lee'
   if(pkg.status!=='AVAILABLE')throw new Error('VOICE_PACKAGE_UNAVAILABLE');
   if(!['kokoro','chatterbox'].includes(pkg.provider))throw new Error('DEVICE_TTS_NOT_AGENT_VOICE');
   if(pkg.provider==='kokoro' && (typeof pkg.voiceId!=='string'||!pkg.voiceId))throw new Error('VOICE_PROVIDER_SPEAKER_REQUIRED');
-  return Object.freeze({...binding,authority:'LEEWAY_VOICE_FABRIC',provider:pkg.provider,voiceId:pkg.voiceId||null,
+  const acoustic=record.tuning===undefined?{}:{tuning:normalizeTuning(normalizeVoicePackage({...pkg,name:pkg.name||pkg.id,owner:pkg.owner||'LeeWay Voice Fabric',tuning:record.tuning}).tuning),tuningProcessor:record.tuningProcessor};
+  if(record.tuning!==undefined&&record.tuningProcessor!=='LEEWAY_STUDIO_DSP_V1')throw new Error('VOICE_TUNING_PROCESSOR_NOT_ADMITTED');
+  return Object.freeze({...binding,...acoustic,authority:'LEEWAY_VOICE_FABRIC',provider:pkg.provider,voiceId:pkg.voiceId||null,
     speakerId:pkg.speakerId||pkg.id,selectionState:record.state,selectedBy:record.selectedBy,qualificationOnly,
     productionAdmitted:!qualificationOnly,deviceMayOverride:false,systemVoiceFallback:false});
 }

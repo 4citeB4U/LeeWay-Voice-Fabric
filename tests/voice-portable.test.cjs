@@ -1,5 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
-const coreURL='data:text/javascript;base64,'+fs.readFileSync(__dirname+'/../src/voice-package-core.js').toString('base64');
+// Use a real file URL: portable core now imports its sibling studio-audio module.
+// data: URLs are non-hierarchical and cannot resolve relative ESM imports.
+const coreURL=require('node:url').pathToFileURL(require('node:path').join(__dirname,'../src/voice-package-core.js')).href;
 const registry=import('data:text/javascript;base64,'+Buffer.from(fs.readFileSync(__dirname+'/../src/voice-registry.js','utf8').replace("'./voice-package-core.js'",JSON.stringify(coreURL))).toString('base64'));
 const meta={id:'test-voice',name:'Test speaker',owner:'Test',pace:1.15,tuning:{pitch:2,bass:-3},apiKey:'never-export-this'};
 test('portable local voice round trip preserves recording and tuning, omits credentials',async()=>{

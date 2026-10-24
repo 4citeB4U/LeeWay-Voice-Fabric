@@ -1,3 +1,4 @@
+import {applySelectedStudioTuning} from './studio-runtime-dsp.mjs';
 import {resolveAgentVoiceSelection} from '../src/voice-package-core.js';
 import crypto from 'node:crypto';
 export const sha256=v=>crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
@@ -28,7 +29,7 @@ export function voiceSelectionSnapshot({bindings,catalog,agentId='agent-lee'}={}
  return Object.freeze({...selected,selectionRevision:sha256(selected)});
 }
 export async function renderBoundAgentSpeech({text,resolveSelection,providers}={}){
- if(typeof text!=='string'||!text.trim()||text.length>1500)throw new Error('VOICE_PREPARED_TEXT_INVALID');
+ if(typeof text!=='string'||!text.trim()||text.length>9000)throw new Error('VOICE_PREPARED_TEXT_INVALID');
  if(typeof resolveSelection!=='function')throw new Error('VOICE_BINDING_RESOLVER_REQUIRED');
  const selected=await resolveSelection();
  if(selected?.authority!=='LEEWAY_VOICE_FABRIC'||!selected.selectionRevision)throw new Error('VOICE_SELECTION_SNAPSHOT_REQUIRED');
@@ -40,9 +41,11 @@ export async function renderBoundAgentSpeech({text,resolveSelection,providers}={
  if(typeof rendered.audioContent!=='string'||!rendered.audioContent||rendered.format!=='wav')throw new Error('VOICE_AUDIO_UNAVAILABLE');
  const audio=Buffer.from(rendered.audioContent,'base64');
  if(audio.length<44||audio.length>24000*120*4||audio.toString('ascii',0,4)!=='RIFF'||audio.toString('ascii',8,12)!=='WAVE')throw new Error('VOICE_AUDIO_CONTAINER_INVALID');
+ const processed=await applySelectedStudioTuning(rendered,selected);
  const now=await resolveSelection();
  if(now.selectionRevision!==selected.selectionRevision)throw new Error('STALE_VOICE_SELECTION_AUDIO_REJECTED');
- return {...rendered,agentId:selected.agentId,personaFamily:selected.personaFamily,personaArchetypeId:selected.personaArchetypeId,
+ const {selectionRevision,...snapshot}=selected;
+ return {...processed,selectionJson:JSON.stringify(snapshot),agentId:selected.agentId,personaFamily:selected.personaFamily,personaArchetypeId:selected.personaArchetypeId,
    voiceAuthority:selected.authority,selectionRevision:selected.selectionRevision,qualificationOnly:selected.qualificationOnly,
    productionAdmitted:selected.productionAdmitted,textHash:sha256(text),state:'SYNTHESIZED_NOT_PLAYBACK_VERIFIED',
    deviceMayOverride:false,systemVoiceFallback:false};
