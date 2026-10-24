@@ -1,3 +1,5 @@
+import {toSpokenText} from './speech-text-normalizer.mjs';
+
 const DEFAULT_VOICE_PACKAGE_ID = 'agent-lee-voice-one';
 const DEFAULT_VOICE_PROVIDER = 'chatterbox';
 
@@ -7,6 +9,12 @@ const makeAbortError = message => {
   const error = new Error(message);
   error.name = 'AbortError';
   return error;
+};
+const isPlaybackEcho = (transcript, spokenText) => {
+  const normalize = value => String(value ?? '').toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const heard = normalize(transcript);
+  const spoken = normalize(spokenText);
+  return Boolean(heard && spoken && heard.split(/\s+/).length >= 2 && (` ${spoken} `).includes(` ${heard} `));
 };
 
 function assertFunction(value, name) {
@@ -126,7 +134,9 @@ export function createVoiceSdkOutput({
     };
     signal?.addEventListener('abort', onAbort, {once: true});
     emitSafely(onEvent, {type: 'voice.playout.requested', turnId, text, voicePackageId, provider: status.provider});
-    const operation = Promise.resolve().then(() => client.speak(text, {allowFallback}));
+    const spokenText = toSpokenText(text);
+    if (!spokenText) throw new Error('Voice output has no speakable text after formatting cleanup.');
+    const operation = Promise.resolve().then(() => client.speak(spokenText, {allowFallback}));
     // Always observe a provider's late settlement after cancellation.
     operation.catch(() => {});
     try {
@@ -134,7 +144,7 @@ export function createVoiceSdkOutput({
       if (stopped || signal?.aborted) throw signal?.reason ?? makeAbortError('Voice output was cancelled.');
       const finalStatus = verify(await client.status(), 'completed playout');
       emitSafely(onEvent, {type: 'voice.playout.completed', turnId, text, voicePackageId, provider: finalStatus.provider});
-      return {renderedText: text, voicePackageId, provider: finalStatus.provider, result};
+      return {renderedText: spokenText, voicePackageId, provider: finalStatus.provider, result};
     } finally {
       playing = false;
       signal?.removeEventListener('abort', onAbort);
@@ -191,6 +201,7 @@ export function createGovernedConversationProcessor({
   const wakePhrases = wakeWords.map(phrase => phrase.trim().toLocaleLowerCase()).sort((a, b) => b.length - a.length);
   let awakeUntil = 0;
   let wakeTimer;
+  let activeResponseText = '';
 
   const event = detail => emitSafely(onEvent, detail);
   const launchTurn = (turnId, stage, signal, run) => {
@@ -212,6 +223,7 @@ export function createGovernedConversationProcessor({
     dispose() { clearTimeout(wakeTimer); awakeUntil = 0; },
     async handle(frame, context) {
       if (frame.kind === 'interruption') {
+        activeResponseText = '';
         event({type: 'conversation.interrupted', epoch: frame.epoch, turnId: frame.turnId, reason: frame.payload?.reason});
         Promise.resolve().then(() => output.stop()).catch(error => event({type: 'conversation.output.stop.failed', error}));
         return;
@@ -222,6 +234,10 @@ export function createGovernedConversationProcessor({
         let text = String(frame.payload?.text ?? '').trim();
         assertString(segmentId, 'transcript segmentId');
         if (!text || acceptedSegments.has(segmentId)) return;
+        if (output.playing === true && isPlaybackEcho(text, activeResponseText)) {
+          event({type: 'conversation.transcript.echo_suppressed', segmentId, text});
+          return;
+        }
         acceptedSegments.add(segmentId);
         if (wakePhrases.length) {
           if (Date.now() >= awakeUntil) {
@@ -304,6 +320,7 @@ export function createGovernedConversationProcessor({
             return;
           }
           if (!context.isCurrent()) throw makeAbortError('Conversation turn was interrupted before output.');
+          activeResponseText = response;
           event({type: 'conversation.response.authorized', turnId, text: response});
           await context.emit(context.session.frame('agent.text.final', {text: response, inputText: text}, {
             turnId,
@@ -313,7 +330,12 @@ export function createGovernedConversationProcessor({
           }));
           if (!context.isCurrent()) throw makeAbortError('Conversation turn was interrupted before playout.');
           event({type: 'conversation.playout.requested', turnId, text: response});
-          const result = await output.speak({text: response, turnId, signal: context.signal});
+          let result;
+          try {
+            result = await output.speak({text: response, turnId, signal: context.signal});
+          } finally {
+            if (activeResponseText === response) activeResponseText = '';
+          }
           if (!context.isCurrent()) throw makeAbortError('Conversation playout was interrupted.');
           const renderedText = typeof result?.renderedText === 'string' ? result.renderedText.trim() : '';
           if (renderedText) append({role: 'assistant', content: renderedText, turnId, evidence: 'audio.rendered'});

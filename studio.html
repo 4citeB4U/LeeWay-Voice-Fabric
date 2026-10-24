@@ -73,6 +73,20 @@ AUTHORIZED ROLES: Studio operator; Creator for shared Apply. LICENSE: Existing r
       <section id="sharedVoice" class="panel shared-panel"><p class="eyebrow">05 / ECOSYSTEM</p><h2>Agent Lee shared voice</h2><p id="sharedVoiceState" class="hint" role="status" aria-live="polite">Checking the existing owner publisher…</p><dl class="binding-readout"><div><dt>Shared speaker</dt><dd id="sharedSpeaker">Unverified</dd></div><div><dt>Revision</dt><dd id="sharedRevision">—</dd></div><div><dt>Device delivery</dt><dd id="sharedDelivery">Unverified</dd></div></dl>
         <button id="applyAgentLeeVoice" class="primary" disabled>Apply voice & acoustic tuning</button><button id="loadSharedVoice" disabled>Load shared voice into audition</button><button id="refreshAgentLeeVoice">Refresh shared selection</button><p class="hint compact">Auditions and dial changes stay in your draft. Apply publishes admitted voices through the existing employee binding. Device acknowledgement is shown separately.</p><p id="sharedCapabilities" class="hint"></p>
       </section>
+      <!-- LEEWAY HEADER — DO NOT REMOVE | REGION: VOICE.STUDIO.DUPLEX_ADAPTER
+      WHAT: lazy live conversation in original UI; AUTHORITY: explicit click -->
+      <details id="duplexVoicePanel" class="panel evidence-panel">
+        <summary>Live duplex conversation — standalone Voice Fabric engine</summary>
+        <p class="hint">This is the existing voice and conversation backend.
+          Choose the voice within the live engine. The spatial Studio layout
+          remains unchanged and microphone activation is explicit.</p>
+        <button id="duplexVoiceOpen" type="button">Open live conversation</button>
+        <a href="http://127.0.0.1:5173/LeeWay-Edge-RTC/conversation-gate.html"
+           target="_blank" rel="noopener noreferrer">Standalone voice application</a>
+        <p id="duplexVoiceStatus" class="hint" role="status">Not launched.</p>
+        <iframe id="duplexVoiceFrame" title="LeeWay full duplex conversation"
+           allow="microphone; autoplay" style="width:100%;min-height:700px;border:0" hidden></iframe>
+      </details>
       <details class="panel evidence-panel"><summary>Runtime evidence & integration</summary><p id="formulaState" class="hint">Formula: NOT EXECUTED · voice mapping requires calibration.</p><p class="hint">This Studio controls Voice Fabric. It does not start another Agent Lee or reasoning runtime.</p><pre id="integrationCode"></pre><ol id="studioEvents" class="event-list" aria-label="Recent studio activity"></ol><button id="exportSession">Export session observations</button></details>
     </aside>
   </div>
@@ -82,5 +96,5 @@ AUTHORIZED ROLES: Studio operator; Creator for shared Apply. LICENSE: Existing r
   <div class="dock-tabs" role="tablist" aria-label="Tuning controls"><button id="acousticTab" role="tab" aria-selected="true" aria-controls="dspPanel">Acoustic tuning</button><button id="synthesisTab" role="tab" aria-selected="false" aria-controls="synthesisPanel" tabindex="-1">Synthesis · regenerate</button><span id="dockHint" class="hint" aria-live="polite">Drag a dial, use arrow keys, or enter a value.</span></div>
   <div id="dspPanel" class="dial-panel" role="tabpanel" aria-labelledby="acousticTab"><div id="dspControls" class="dial-strip"></div></div><div id="synthesisPanel" class="dial-panel" role="tabpanel" aria-labelledby="synthesisTab" hidden><div id="synthesisControls" class="dial-strip"></div></div>
 </section>
-<script src="src/browser-voice.js"></script><script type="module" src="src/studio.js"></script><script type="module" src="src/studio-console.js"></script>
+<script src="src/browser-voice.js"></script><script type="module" src="src/studio.js"></script><script type="module" src="src/studio-console.js"></script><script type="module" src="src/studio-duplex-adapter.js"></script>
 </body></html>

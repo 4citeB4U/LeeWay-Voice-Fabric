@@ -1,0 +1,26 @@
+{
+  "schema": "LEEWAY-VOICE-DUPLEX-LOCK-v1",
+  "date": "2026-10-24",
+  "sourceRepository": "https://github.com/4citeB4U/LeeWay-Edge-RTC",
+  "interfaceRepository": "https://github.com/4citeB4U/LeeWay-Voice-Fabric",
+  "status": "SOFTWARE_TESTED_ACOUSTIC_UNVERIFIED",
+  "ui": "studio.html",
+  "voice": "kokoro",
+  "optionalModel": "qwen3.5:4b",
+  "files": {
+    "src/voice/audio.ts": "65e8b0a2a2ab4ce2edfc0fa369ab9aee33ed533948e557af15460789a5be8e3b",
+    "src/voice/realtime-dictation.ts": "196a5cf66c55d8a700330a860945c2d7bd62787b56a1785f904ba5f0d534af03",
+    "src/voice/realtime-conversation.ts": "ab0bbcdb35f648dbbb120d242264c3da4798217d5a030d8666fe702a8709ad74",
+    "src/conversation-gate.ts": "430ae63be5e85157431aafa3456b99f09738121bbbc64e9f9694290c2abf65da",
+    "src/voice/local-agent-lee-turn-gateway.mjs": "ed5d5473eddc9bc05d7cab785c0483a80abc09f99450911fb7b7f82a6760f683",
+    "src/voice/canonical-agent-lee-persona.mjs": "3213d18f9af7c442e00e5377a6ff3b14ddb99c722f2baa23ef54db0ee9890c92",
+    "conversation-gate.html": "b7c6ed08496eedb3fb639c46105d9df5d9780312e9c8489808ff2bd28f5a0500",
+    "vite.config.ts": "2d47531ae5899d0f7f412e92e5958226d1076a3f719a316cac8122261c8a48e5",
+    "tests/realtime-conversation.test.ts": "dc740ee7f3ed28aa28442d57b9ac89c6ec4eecdc215bc5de216041f2feaf9cfe",
+    "tests/shared-aec-track.test.mjs": "0980d1bde287ed9cee62df5ca51393632912eb72b36f0b33ae90b570f61f38ba",
+    "voice-fabric/src/edge-rtc-audio-adapter.mjs": "461a4108b007b2a90b6e5fb328cd76003a15034df551c4e978e292877a0ab9ec",
+    "voice-fabric/src/realtime-voice-session.mjs": "c941290c3caf5f63bb1d7571d0bb5568521bbc9cb139133d638415d843f6100c",
+    "voice-fabric/src/realtime-conversation-pipeline.mjs": "cfefb058e964747a2db1252922731f1950c32e0a34623c62d049ce745c78734a",
+    "voice-fabric/src/speech-text-normalizer.mjs": "a58e43c3582dde12a15ade42fa9441354acb2dc99cdc67d5ffc6eb0bbbf2005c"
+  }
+}

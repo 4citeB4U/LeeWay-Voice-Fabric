@@ -43,6 +43,7 @@ export function createEdgeRtcAudioInput({
   sampleRate = DEFAULT_SAMPLE_RATE,
   channels = DEFAULT_CHANNELS,
   onError,
+  onPcm,
   startSession = true,
 } = {}) {
   assertObject(session, 'session');
@@ -111,6 +112,8 @@ export function createEdgeRtcAudioInput({
             try { onError?.(error); } catch {}
           };
           try {
+            // Same AEC-processed PCM drives the VAD and downstream audio input.
+            onPcm?.(pcm);
             void dispatchPcm(pcm).catch(failed);
           } catch (error) { failed(error); }
         });
@@ -157,6 +160,8 @@ export function createEdgeRtcAudioInput({
 
   return Object.freeze({
     get capture() { return capture; },
+    getAudioTrack: () => capture?.getAudioTrack?.() ?? null,
+    getAudioProcessingSettings: () => capture?.getAudioProcessingSettings?.() ?? null,
     start,
     stop,
     emitPcm,
@@ -197,6 +202,10 @@ export function bindSpeechRecognitionToSession({
   onError,
   onFinal,
   onSpeechStart,
+  acceptTranscript,
+  onSuppressedTranscript,
+  getAudioTrack,
+  requireAudioTrack = false,
 } = {}) {
   assertObject(session, 'session');
   assertFunction(session.frame, 'session.frame');
@@ -233,6 +242,12 @@ export function bindSpeechRecognitionToSession({
       if (!text.trim()) continue;
       restartAttempts = 0;
       const final = Boolean(result.isFinal);
+      // LEEWAY HEADER — DO NOT REMOVE | REGION: VOICE.ASR.ECHO_GATE
+      // Do not dispatch playback echo into the user transcript or runtime.
+      if (acceptTranscript?.({text, final}) === false) {
+        try { onSuppressedTranscript?.({text, final}); } catch(error) { onError?.(error); }
+        continue;
+      }
       const signature = `${final ? 'final' : 'partial'}\0${text}`;
       if (signatures.get(index) === signature) continue;
 
@@ -322,8 +337,22 @@ export function bindSpeechRecognitionToSession({
     clearTimeout(restartTimer);
     restartTimer = null;
     bind();
-    try { recognition.start?.(); started = true; }
-    catch (error) { wantRunning = false; unbindRecognition(); throw error; }
+    try {
+      // Chrome/Edge desktop >=135 support SpeechRecognition.start(audioTrack).
+      // Never silently use a separate default mic for full-duplex AEC.
+      const track = getAudioTrack?.();
+      if (requireAudioTrack) {
+        if (!track || track.kind !== 'audio' || track.readyState !== 'live')
+          throw new Error('AEC_SHARED_MIC_TRACK_UNAVAILABLE');
+        const settings = track.getSettings?.() ?? {};
+        if (settings.echoCancellation !== true)
+          throw new Error('AEC_NOT_ACTIVE_ON_CAPTURED_MIC_TRACK');
+        recognition.start(track);
+      } else {
+        recognition.start?.();
+      }
+      started = true;
+    } catch (error) { wantRunning = false; unbindRecognition(); throw error; }
   };
 
   const stop = ({abort = false} = {}) => {
