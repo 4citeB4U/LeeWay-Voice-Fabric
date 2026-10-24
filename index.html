@@ -9,6 +9,7 @@ AUTHORIZED ROLES: Studio operator; Creator for shared Apply. LICENSE: Existing r
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#080d17"><title>LeeWay Voice Fabric · Spatial Audio Studio</title>
   <link rel="stylesheet" href="src/studio.css">
+  <link rel="stylesheet" href="src/studio-duplex-workspace.css">
 </head>
 <body data-theme="cyber">
 <main id="studioMain">
@@ -41,6 +42,35 @@ AUTHORIZED ROLES: Studio operator; Creator for shared Apply. LICENSE: Existing r
           <div><div class="spectrum-label"><span class="mic-color">INPUT / MICROPHONE</span><span id="micLevel">Off</span></div><canvas id="micSpectrum" aria-label="Microphone frequency spectrum"></canvas></div>
           <div><div class="spectrum-label"><span class="tts-color">OUTPUT / VOICE</span><span id="outputLevel">Silent</span></div><canvas id="ttsSpectrum" aria-label="Voice playback frequency spectrum"></canvas></div>
         </div>
+        <!-- LEEWAY HEADER — DO NOT REMOVE | REGION: VOICE.STUDIO.INLINE.DUPLEX
+             WHAT: one live conversation module sharing the existing orb state;
+             WHO: LeeWay Industries; WHEN: 2026-10-24;
+             HOW: user-loaded exact Edge RTC test, no duplicate microphone. -->
+        <section id="duplexInline" class="leeway-duplex-inline" aria-label="Live Agent Lee conversation">
+          <div class="leeway-duplex-inline-header">
+            <div>
+              <p class="eyebrow">LIVE CONVERSATION</p>
+              <h3>Talk with Agent Lee</h3>
+              <p class="hint">The sphere above follows listening and speaking activity.
+                Choose Machine Consciousness, Qwen, or both inside the test;
+                use the Studio voice and review evidence in the existing runtime panel.</p>
+            </div>
+            <a id="duplexSeparateLink"
+              href="http://127.0.0.1:5173/LeeWay-Edge-RTC/conversation-gate.html"
+              target="_blank" rel="noopener noreferrer">Standalone app</a>
+          </div>
+          <div class="leeway-duplex-controls">
+            <button id="duplexInlineLoad" type="button" class="primary"
+              aria-controls="duplexInlineFrame">Activate live voice test</button>
+            <button id="duplexInlineClose" type="button" hidden>
+              End test &amp; release microphone</button>
+            <span id="duplexInlineStatus" role="status" class="hint">
+              Not active; Studio's microphone remains off until you start listening.</span>
+          </div>
+          <iframe id="duplexInlineFrame" title="Agent Lee full-duplex conversation"
+            allow="microphone; autoplay" referrerpolicy="origin"
+            loading="lazy" hidden></iframe>
+        </section>
         <div class="stage-actions"><button id="speakStream" class="primary" disabled>▶ Speak / Stream</button><button id="stop" class="interrupt">■ Interrupt</button><button id="toggleLight" aria-pressed="true">☼ Studio light</button></div>
         <div class="mix-grid" aria-label="Local listening mix">
           <div class="slider-control"><label for="masterGain">Master gain <output id="masterGainValue">90%</output></label><input id="masterGain" type="range" min="0" max="1" step=".01" value=".9"></div>
@@ -77,10 +107,11 @@ AUTHORIZED ROLES: Studio operator; Creator for shared Apply. LICENSE: Existing r
     </aside>
   </div>
 </main>
+
 <section id="tuningDock" class="tuning-dock" aria-label="Voice tuning and playback">
   <div class="dock-top"><div class="dock-selected"><span class="eyebrow">CURRENT TAKE</span><strong id="dockSpeaker">Choose a speaker</strong><span id="dockSpeakerMeta" class="hint"></span></div><div class="transport"><button id="playPause" class="play-button primary" disabled aria-label="Play audition">▶ Play</button><button id="restartPlayback" disabled aria-label="Restart audition">↺</button><div class="playback-position"><label class="sr-only" for="seek">Audition position</label><input id="seek" type="range" min="0" max="100" step=".1" value="0" disabled><output id="playbackTime">0:00 / 0:00</output></div></div><div class="dock-options"><label class="toggle"><input id="autoAudition" type="checkbox">Replay after adjustment</label><button id="reset">Reset profile</button></div></div>
   <div class="dock-tabs" role="tablist" aria-label="Tuning controls"><button id="acousticTab" role="tab" aria-selected="true" aria-controls="dspPanel">Acoustic tuning</button><button id="synthesisTab" role="tab" aria-selected="false" aria-controls="synthesisPanel" tabindex="-1">Synthesis · regenerate</button><span id="dockHint" class="hint" aria-live="polite">Drag a dial, use arrow keys, or enter a value.</span></div>
   <div id="dspPanel" class="dial-panel" role="tabpanel" aria-labelledby="acousticTab"><div id="dspControls" class="dial-strip"></div></div><div id="synthesisPanel" class="dial-panel" role="tabpanel" aria-labelledby="synthesisTab" hidden><div id="synthesisControls" class="dial-strip"></div></div>
 </section>
-<script src="src/browser-voice.js"></script><script type="module" src="src/studio.js"></script><script type="module" src="src/studio-console.js"></script>
+<script src="src/browser-voice.js"></script><script type="module" src="src/studio.js"></script><script type="module" src="src/studio-console.js"></script><script type="module" src="src/studio-duplex-adapter.js"></script>
 </body></html>

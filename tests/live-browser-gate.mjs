@@ -39,7 +39,7 @@ try{
   must(sdk.ids.includes('agent-lee-voice-one'),'SDK catalog includes Agent Lee Voice One');
   must(sdk.ids.includes('chatterbox-default-natural'),'SDK catalog includes Chatterbox Natural');
   must(sdk.selected==='chatterbox-default-natural','SDK selects Chatterbox Natural through bridge');
-  must(sdk.ping?.version==='2.0.0','bridge reports Voice Fabric v2');
+  must(/^2\.\d+\.\d+$/.test(String(sdk.ping?.version||'')),'bridge reports a compatible Voice Fabric v2.x version');
 
   if(failures.length)process.exitCode=1;
   else console.log('LIVE_BROWSER_CATALOG_GATE=PASS');
