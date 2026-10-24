@@ -89,3 +89,67 @@ test('speech recognition revisions become partial and final transcript frames', 
   assert.equal(reducer.finalizedText(), 'hello world');
   assert.equal(bridge.bound, false);
 });
+
+test('graceful recognition stop accepts its final result before the end event', async () => {
+  const {bindSpeechRecognitionToSession} = await loadModule();
+  const {RealtimeVoiceSession, TranscriptReducer} = await loadSession();
+  const reducer = new TranscriptReducer();
+  const handlers = new Map();
+  const recognition = {
+    addEventListener(name, handler) { handlers.set(name, handler); },
+    removeEventListener(name) { handlers.delete(name); },
+    start() {},
+    stop() {},
+  };
+  const session = new RealtimeVoiceSession({
+    sessionId: 'edge-graceful-stop',
+    processors: [{handle: async frame => {
+      if (frame.kind === 'transcript.partial' || frame.kind === 'transcript.final') reducer.apply(frame);
+    }}],
+  });
+  const bridge = bindSpeechRecognitionToSession({session, recognition});
+  bridge.start();
+  bridge.stop();
+  assert.equal(bridge.bound, false);
+  assert.equal(typeof handlers.get('result'), 'function');
+  handlers.get('result')({resultIndex: 0, results: [{isFinal: true, 0: {transcript: 'final while stopping'}}]});
+  handlers.get('end')();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(reducer.finalizedText(), 'final while stopping');
+});
+
+test('recognition restart creates new segment IDs and abort ignores a late callback', async () => {
+  const {bindSpeechRecognitionToSession} = await loadModule();
+  const {RealtimeVoiceSession} = await loadSession();
+  const seen = [];
+  const handlers = new Map();
+  const recognition = {
+    addEventListener(name, handler) { handlers.set(name, handler); },
+    removeEventListener(name) { handlers.delete(name); },
+    start() {},
+    stop() {},
+    abort() {},
+  };
+  const session = new RealtimeVoiceSession({
+    sessionId: 'edge-recognition-runs',
+    processors: [{handle: async frame => {
+      if (frame.kind === 'transcript.final') seen.push(frame.payload.segmentId);
+    }}],
+  });
+  const bridge = bindSpeechRecognitionToSession({session, recognition});
+  bridge.start();
+  handlers.get('result')({resultIndex: 0, results: [{isFinal: true, 0: {transcript: 'first'}}]});
+  handlers.get('end')();
+  await new Promise(resolve => setImmediate(resolve));
+
+  bridge.start();
+  const late = handlers.get('result');
+  handlers.get('result')({resultIndex: 0, results: [{isFinal: true, 0: {transcript: 'second'}}]});
+  bridge.stop({abort: true});
+  late({resultIndex: 1, results: [
+    {isFinal: true, 0: {transcript: 'second'}},
+    {isFinal: true, 0: {transcript: 'late'}},
+  ]});
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(seen, ['dictation-1-0', 'dictation-2-0']);
+});

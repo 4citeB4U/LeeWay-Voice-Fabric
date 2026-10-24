@@ -175,6 +175,9 @@ export class RealtimeVoiceSession {
     this.inputClaims = 0;
     this.closed = false;
     this.processing = false;
+    this.interruptionProcessing = false;
+    this.pendingInterruption = null;
+    this.lifetimeController = new AbortController();
     this.generationController = new AbortController();
     this.systemQueue = [];
     this.protectedQueue = [];
@@ -233,11 +236,31 @@ export class RealtimeVoiceSession {
   }
 
   dispatch(frame) {
-    if (this.closed) return Promise.reject(new Error('Session is closed.'));
+    try { return this.#enqueue(frame); }
+    catch (error) { return Promise.reject(error); }
+  }
+
+  #enqueue(frame) {
+    if (this.closed) throw new Error('Session is closed.');
     const normalized = validateLeeWayFrame(frame);
-    if (normalized.sessionId !== this.sessionId) return Promise.reject(new Error('Frame belongs to another session.'));
-    if (normalized.epoch > this.epoch) return Promise.reject(new Error('Frame epoch is ahead of the session epoch.'));
-    if (this.#isStale(normalized)) return Promise.reject(makeAbortError('Frame belongs to an interrupted generation.'));
+    if (normalized.sessionId !== this.sessionId) throw new Error('Frame belongs to another session.');
+    if (normalized.epoch > this.epoch) throw new Error('Frame epoch is ahead of the session epoch.');
+    if (this.#isStale(normalized)) throw makeAbortError('Frame belongs to an interrupted generation.');
+
+    // The emergency lane never competes with ordinary system/data capacity.
+    // While a notification is in flight, retain at most one pending notification
+    // with the latest epoch/reason. Callers share its completion, not a waiter list.
+    if (normalized.kind === 'interruption') {
+      if (this.pendingInterruption) {
+        this.pendingInterruption.frame = normalized;
+        return this.pendingInterruption.completion;
+      }
+      const entry = {frame: normalized};
+      entry.completion = new Promise((resolve, reject) => Object.assign(entry, {resolve, reject}));
+      this.pendingInterruption = entry;
+      void this.#drainInterruptions();
+      return entry.completion;
+    }
 
     const targetQueue = normalized.class === SYSTEM_CLASS
       ? this.systemQueue
@@ -245,7 +268,7 @@ export class RealtimeVoiceSession {
     const queueLimit = normalized.class === SYSTEM_CLASS
       ? Math.max(1, Math.min(16, this.maxQueueSize))
       : (normalized.interruptible ? this.maxQueueSize : this.maxProtectedQueueSize);
-    if (targetQueue.length >= queueLimit) return Promise.reject(new Error('Realtime voice frame queue is full.'));
+    if (targetQueue.length >= queueLimit) throw new Error('Realtime voice frame queue is full.');
 
     return new Promise((resolve, reject) => {
       targetQueue.push({frame: normalized, resolve, reject, priority: priorityFor(normalized)});
@@ -274,13 +297,44 @@ export class RealtimeVoiceSession {
 
   async stop() {
     if (this.closed) return;
-    await this.interrupt('session-stop');
+    // Close admission synchronously: shutdown must not wait behind a processor,
+    // microphone permission, or a full system queue.
     this.closed = true;
+    this.nextEpoch();
+    const error = makeAbortError('Session stopped.');
+    this.generationController.abort(error);
+    this.lifetimeController.abort(error);
     this.inputOwner = null;
     this.inputClaims = 0;
-    for (const entry of this.systemQueue.splice(0)) entry.reject(new Error('Session stopped.'));
-    for (const entry of this.protectedQueue.splice(0)) entry.reject(new Error('Session stopped.'));
-    for (const entry of this.queue.splice(0)) entry.reject(new Error('Session stopped.'));
+    for (const queue of [this.systemQueue, this.protectedQueue, this.queue]) {
+      for (const entry of queue.splice(0)) entry.reject(error);
+    }
+    this.pendingInterruption?.reject(error);
+    this.pendingInterruption = null;
+  }
+
+  get signal() {
+    return this.lifetimeController.signal;
+  }
+
+  async #drainInterruptions() {
+    if (this.interruptionProcessing) return;
+    this.interruptionProcessing = true;
+    try {
+      while (this.pendingInterruption && !this.closed) {
+        const entry = this.pendingInterruption;
+        this.pendingInterruption = null;
+        try {
+          await this.#process(entry.frame);
+          entry.resolve(entry.frame);
+        } catch (error) {
+          entry.reject(error);
+          try { this.onError?.(error, entry.frame); } catch {}
+        }
+      }
+    } finally {
+      this.interruptionProcessing = false;
+    }
   }
 
   #scheduleDrain() {
@@ -319,7 +373,7 @@ export class RealtimeVoiceSession {
     if (this.processing) return;
     this.processing = true;
     try {
-      while (this.systemQueue.length || this.protectedQueue.length || this.queue.length) {
+      while (!this.closed && (this.systemQueue.length || this.protectedQueue.length || this.queue.length)) {
         const entry = this.#takeNext();
         try {
           await this.#process(entry.frame);
@@ -331,33 +385,43 @@ export class RealtimeVoiceSession {
       }
     } finally {
       this.processing = false;
-      if (this.queue.length) this.#scheduleDrain();
+      if (!this.closed && (this.systemQueue.length || this.protectedQueue.length || this.queue.length)) this.#scheduleDrain();
     }
   }
 
   async #process(frame) {
     if (this.#isStale(frame)) throw makeAbortError('Frame was cancelled by an interruption.');
-    const signal = frame.interruptible ? this.generationController.signal : undefined;
-    const isCurrent = () => !frame.interruptible || (frame.epoch === this.epoch && !signal?.aborted);
+    const signal = frame.interruptible ? this.generationController.signal : this.lifetimeController.signal;
+    const isCurrent = () => !this.closed && !signal.aborted && (!frame.interruptible || frame.epoch === this.epoch);
     const context = {
       session: this,
       signal,
       isCurrent,
       emit: emitted => {
-        if (this.closed) return Promise.reject(new Error('Session is closed.'));
-        const accepted = this.dispatch(emitted);
-        accepted.catch(error => {
-          try { this.onError?.(error, emitted); } catch {}
-        });
-        // Emission means the frame was accepted by the bus. Waiting for the
-        // same serial drain to finish here would deadlock a processor that
-        // emits a follow-up frame while handling the current one.
-        return Promise.resolve();
+        if (!isCurrent()) return Promise.reject(makeAbortError('Emitting processor is no longer current.'));
+        try {
+          // Enqueue validates admission synchronously. Awaiting completion in
+          // this serial processor would deadlock; emit acknowledges admission
+          // only, while processing failures flow through onError.
+          this.#enqueue(emitted).catch(() => {});
+          return Promise.resolve();
+        } catch (error) { return Promise.reject(error); }
       },
     };
     for (const processor of this.processors) {
       if (!isCurrent()) throw makeAbortError('Frame was cancelled during processing.');
-      await processor.handle(frame, context);
+      await new Promise((resolve, reject) => {
+        const cancelled = () => { cleanup(); reject(signal.reason ?? makeAbortError('Processing cancelled.')); };
+        const cleanup = () => signal.removeEventListener('abort', cancelled);
+        signal.addEventListener('abort', cancelled, {once: true});
+        if (signal.aborted) { cancelled(); return; }
+        // Observe the late settlement even when a provider ignores AbortSignal.
+        // It cannot hold the bus or use this stale context to emit new work.
+        Promise.resolve().then(() => {
+          if (!isCurrent()) throw makeAbortError('Frame was cancelled before processing.');
+          return processor.handle(frame, context);
+        }).then(value => { cleanup(); resolve(value); }, error => { cleanup(); reject(error); });
+      });
     }
     if (!isCurrent()) throw makeAbortError('Frame was cancelled during processing.');
   }

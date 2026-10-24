@@ -59,9 +59,10 @@ export function createEdgeRtcAudioInput({
   let capture = null;
   let running = false;
   let startPromise = null;
+  let generation = 0;
+  let cancelStart = null;
 
-  const emitPcm = pcm => {
-    if (!running) return Promise.reject(makeAbortError('Audio input is not running.'));
+  const dispatchPcm = pcm => {
     if (!(pcm instanceof ArrayBuffer)) throw new TypeError('AudioCapture must provide PCM as an ArrayBuffer.');
     const frame = session.frame('audio.input', {
       pcm,
@@ -72,49 +73,90 @@ export function createEdgeRtcAudioInput({
       class: 'data',
       interruptible: false,
     });
-    return dispatchFrame(session, frame, onError);
+    return session.dispatch(frame);
   };
 
-  capture = new AudioCapture(pcm => {
-    void emitPcm(pcm).catch(error => {
-      try { onError?.(error); } catch {}
-    });
-  });
+  const emitPcm = pcm => {
+    if (!running) return Promise.reject(makeAbortError('Audio input is not running.'));
+    try { return dispatchPcm(pcm); }
+    catch (error) { return Promise.reject(error); }
+  };
 
-  const start = async () => {
-    if (running) return;
+  const start = () => {
+    if (running) return Promise.resolve();
     if (startPromise) return startPromise;
-    const pending = (async () => {
+    const token = ++generation;
+    let capturing = false;
+    let localRelease = null;
+    let localCapture;
+    const isCurrent = () => token === generation && !session.signal?.aborted;
+    const cleanLocal = () => {
+      capturing = false;
+      try { localCapture?.stop?.(); } catch {}
+      localRelease?.();
+      if (releaseInput === localRelease) releaseInput = null;
+    };
+    const cancelled = new Promise((resolve, reject) => {
+      cancelStart = () => reject(makeAbortError('Audio input start was cancelled.'));
+    });
+    const work = (async () => {
       try {
-        releaseInput = session.claimInput(ownerId);
+        localRelease = session.claimInput(ownerId);
+        releaseInput = localRelease;
+        localCapture = new AudioCapture(pcm => {
+          if (!isCurrent() || !capturing) return;
+          const failed = error => {
+            if (!isCurrent()) return;
+            try { stop(); } catch {}
+            try { onError?.(error); } catch {}
+          };
+          try {
+            void dispatchPcm(pcm).catch(failed);
+          } catch (error) { failed(error); }
+        });
+        capture = localCapture;
         if (startSession) await session.start();
-        await capture.start();
+        if (!isCurrent()) throw makeAbortError('Audio input start was cancelled.');
+        capturing = true;
+        await localCapture.start();
+        if (!isCurrent()) throw makeAbortError('Audio input start was cancelled.');
         running = true;
       } catch (error) {
-        try { capture.stop?.(); } catch {}
-        releaseInput?.();
-        releaseInput = null;
+        // A late permission grant belongs to this attempt, never a newer one.
+        cleanLocal();
         throw error;
       }
     })();
+    const pending = Promise.race([work, cancelled]);
     startPromise = pending;
+    const clear = () => {
+      if (startPromise === pending) { startPromise = null; cancelStart = null; }
+    };
     pending.then(
-      () => { if (startPromise === pending) startPromise = null; },
-      () => { if (startPromise === pending) startPromise = null; },
+      clear,
+      clear,
     );
     return pending;
   };
 
   const stop = () => {
+    generation += 1;
     running = false;
-    try { capture.stop?.(); } finally {
+    cancelStart?.();
+    cancelStart = null;
+    startPromise = null;
+    try { capture?.stop?.(); } finally {
       releaseInput?.();
       releaseInput = null;
     }
   };
 
+  session.signal?.addEventListener('abort', () => {
+    try { stop(); } catch (error) { try { onError?.(error); } catch {} }
+  }, {once: true});
+
   return Object.freeze({
-    capture,
+    get capture() { return capture; },
     start,
     stop,
     emitPcm,
@@ -162,14 +204,21 @@ export function bindSpeechRecognitionToSession({
 
   const revisions = new Map();
   const signatures = new Map();
-  let bound = false;
+  const finals = new Set();
+  let run = 0;
+  let activeRun = null;
+  let installed = false;
+  let started = false;
+  let stopping = false;
   let unbind = [];
 
-  const emitResult = event => {
+  const emitResult = (event, state) => {
+    if (!installed || state !== activeRun || state.aborted) return;
     const results = event?.results;
     if (!results || !Number.isInteger(event.resultIndex)) return;
 
     for (let index = event.resultIndex; index < results.length; index += 1) {
+      if (finals.has(index)) continue;
       const result = results[index];
       const alternative = result?.[0];
       const text = typeof alternative?.transcript === 'string' ? alternative.transcript : '';
@@ -181,9 +230,11 @@ export function bindSpeechRecognitionToSession({
       const revision = (revisions.get(index) ?? -1) + 1;
       revisions.set(index, revision);
       signatures.set(index, signature);
+      if (final) finals.add(index);
 
+      const segmentId = `${segmentPrefix}-${state.id}-${index}`;
       const frame = session.frame(final ? 'transcript.final' : 'transcript.partial', {
-        segmentId: `${segmentPrefix}-${index}`,
+        segmentId,
         revision,
         text,
       }, {
@@ -191,47 +242,77 @@ export function bindSpeechRecognitionToSession({
         class: 'data',
         interruptible: !final,
       });
-      dispatchFrame(session, frame, onError).catch(() => {});
-      if (final) {
-        try { onFinal?.({segmentId: `${segmentPrefix}-${index}`, revision, text}); } catch (error) {
-          try { onError?.(error); } catch {}
+      dispatchFrame(session, frame, onError).then(() => {
+        // A final callback is evidence of successful bus processing, not merely
+        // a recognizer event. Aborted runs cannot initiate downstream work.
+        if (final && !state.aborted) {
+          try { onFinal?.({segmentId, revision, text}); } catch (error) {
+            try { onError?.(error); } catch {}
+          }
         }
-      }
+      }, () => {
+        if (state === activeRun && signatures.get(index) === signature) {
+          signatures.delete(index);
+          finals.delete(index);
+        }
+      });
     }
   };
 
   const bind = () => {
-    if (bound) return;
-    bound = true;
-    unbind = [installHandler(recognition, 'result', emitResult)];
+    if (installed) return;
+    activeRun = {id: ++run, aborted: false};
+    const state = activeRun;
+    revisions.clear();
+    signatures.clear();
+    finals.clear();
+    installed = true;
+    unbind = [installHandler(recognition, 'result', event => emitResult(event, state))];
     const errorHandler = event => {
       const error = new Error(`Speech recognition error: ${event?.error ?? 'unknown'}`);
       try { onError?.(error, event); } catch {}
     };
     unbind.push(installHandler(recognition, 'error', errorHandler));
+    unbind.push(installHandler(recognition, 'end', () => {
+      if (state === activeRun) unbindRecognition();
+    }));
   };
 
   const unbindRecognition = () => {
     for (const remove of unbind.splice(0)) remove();
-    bound = false;
+    installed = false;
+    started = false;
+    stopping = false;
   };
 
   const start = () => {
+    if (stopping) throw new Error('Speech recognition is still stopping; wait for its end event.');
+    if (started) return;
     bind();
-    recognition.start?.();
+    try { recognition.start?.(); started = true; }
+    catch (error) { unbindRecognition(); throw error; }
   };
 
   const stop = ({abort = false} = {}) => {
-    if (abort) recognition.abort?.();
-    else recognition.stop?.();
-    unbindRecognition();
+    if (!installed) return;
+    if (abort) {
+      activeRun.aborted = true;
+      unbindRecognition();
+      recognition.abort?.();
+    } else {
+      // Keep result listeners through the final result emitted by stop().
+      stopping = true;
+      started = false;
+      try { recognition.stop?.(); }
+      catch (error) { unbindRecognition(); throw error; }
+    }
   };
 
   return Object.freeze({
     bind,
     start,
     stop,
-    unbind: unbindRecognition,
-    get bound() { return bound; },
+    unbind: () => { if (activeRun) activeRun.aborted = true; unbindRecognition(); },
+    get bound() { return started && !stopping; },
   });
 }
