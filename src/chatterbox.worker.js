@@ -43,7 +43,10 @@ async function load(id,requested,useNativeDecoder=false){
   let adapter=null;
   if(requested!=='wasm'&&self.navigator.gpu)try{adapter=await navigator.gpu.requestAdapter({powerPreference:'high-performance'})}catch{}
   device=requested==='wasm'||!adapter?'wasm':'webgpu';
-  const dtype={embed_tokens:'fp32',speech_encoder:'fp32',conditional_decoder:'fp32',language_model:device==='webgpu'&&adapter?.features.has('shader-f16')?'q4f16':'q4'};
+  const turboDtype=device==='webgpu'&&adapter?.features.has('shader-f16')?'q4f16':'q4';
+  const dtype=turbo
+    ?{embed_tokens:turboDtype,speech_encoder:turboDtype,conditional_decoder:turboDtype,language_model:turboDtype}
+    :{embed_tokens:'fp32',speech_encoder:'fp32',conditional_decoder:'fp32',language_model:device==='webgpu'&&adapter?.features.has('shader-f16')?'q4f16':'q4'};
   if(requested==='wasm'&&!turbo){
     const ort=await import('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/webgpu/+esm');
     ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;
@@ -164,3 +167,4 @@ self.onmessage=event=>{
     finally{activeRequestId=null;}
   });
 };
+
