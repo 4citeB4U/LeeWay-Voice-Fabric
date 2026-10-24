@@ -12,14 +12,14 @@ test('Chatterbox prepares only the selected reference and encodes it once', asyn
 
   const reference = new Blob(['voice one']);
   const pkg = {id:'agent-lee-voice-one', provider:'chatterbox', pace:1.22, exaggeration:.25};
-  const calls = {audio:0, setReference:0, loadOptions:null};
+  const calls = {audio:0, setReference:0, references:[], loadOptions:null};
   class Kokoro { stop(){} setVoice(){} setPace(){} }
   class DeviceSpeech { stop(){} }
   class Chatterbox {
     constructor(options) { calls.loadOptions = options; this.ready = false; }
     stop(){}
     async load() { this.ready = true; return {device:'webgpu'}; }
-    async setReference(blob) { assert.equal(blob, reference); calls.setReference++; }
+    async setReference(blob) { calls.setReference++; calls.references.push(blob); }
     setPace(){}
   }
   const handlers = new Map();
@@ -68,8 +68,17 @@ test('Chatterbox prepares only the selected reference and encodes it once', asyn
   assert.equal(calls.loadOptions.skipDefaultReference, true);
   assert.equal(calls.audio, 1, 'the selected Voice One reference is retrieved once');
   assert.equal(calls.setReference, 1, 'the selected Voice One reference is encoded once');
+  assert.equal(calls.references[0], reference);
 
   await send(3,'selectVoice',{voicePackageId:pkg.id});
   assert.equal(calls.setReference, 1, 'reapplying the active voice does not re-encode it');
+
+  const customAudio = vm.runInContext('new ArrayBuffer(2)', context);
+  await send(4,'setReference',{audio:customAudio,type:'audio/wav'});
+  assert.equal(calls.setReference, 2);
+  await send(5,'selectVoice',{voicePackageId:pkg.id});
+  assert.equal(calls.audio, 2, 'reselecting Voice One restores its canonical reference after a custom reference');
+  assert.equal(calls.setReference, 3);
+  assert.equal(calls.references[2], reference);
 });
 
