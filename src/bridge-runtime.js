@@ -186,6 +186,7 @@ addEventListener('message',async e=>{
       case 'setReference':{
         const bytes=m.data?.audio;if(!(bytes instanceof ArrayBuffer))throw new Error('Reference audio ArrayBuffer required.');
         useEngine('chatterbox');
+        preparedReferenceId=null;
         await voice.setReference(new Blob([bytes],{type:m.data.type||'audio/wav'}));
         reply(e.source,e.origin,m.id,true,{name:m.data.name||'custom-reference'});break;
       }
@@ -220,3 +221,4 @@ addEventListener('message',async e=>{
   }catch(error){if(!isAbort(error))remember(error);reply(e.source,e.origin,m.id,false,null,error.message||String(error));}
 });
 parent.postMessage({token,type:'voice.ready',data:{version:VERSION}},'*');
+
