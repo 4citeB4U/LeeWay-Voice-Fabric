@@ -11,7 +11,7 @@ const engines={
   'device-speech':new globalThis.LeeWayDeviceSpeechVoice(),
   // The selected Chatterbox package supplies its own reference after model load.
   // Do not spend time encoding the unrelated provider-default reference first.
-  chatterbox:new globalThis.LeeWayBrowserVoice({skipDefaultReference:true})
+  chatterbox:new globalThis.LeeWayBrowserVoice({skipDefaultReference:true,model:'turbo'})
 };
 let voice=engines.kokoro,activeProvider='kokoro';
 let activeStream=null,activeStreamId=null,selectedVoiceId=DEFAULT_KOKORO_VOICE_ID;
