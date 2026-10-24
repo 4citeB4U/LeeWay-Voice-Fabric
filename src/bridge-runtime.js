@@ -131,7 +131,8 @@ async function selfTest(source,origin,{audible=false,bridgeUrl,bearerToken}={}){
     try{
       const out=await voice.request('generate',{text:'Voice check.',exaggeration:voice.exaggeration});
       const m=peakAndRms(out.audio);
-      step('synthesis',m.samples>0&&m.peak>0.01&&Number.isFinite(m.rms),{...m,sampleRate:out.sampleRate,seconds:m.samples/out.sampleRate});
+      step('waveform-non-silent',m.samples>0&&m.peak>0.01&&Number.isFinite(m.rms),{...m,sampleRate:out.sampleRate,seconds:m.samples/out.sampleRate,
+        speechContent:'NOT_MEASURED',note:'This check detects non-silent samples only; it does not qualify intelligibility or voice quality.'});
     }catch(error){step('synthesis',false,{error:error.message});}
   }else if(prepared){
     const voices=globalThis.speechSynthesis?.getVoices?.()||[];
