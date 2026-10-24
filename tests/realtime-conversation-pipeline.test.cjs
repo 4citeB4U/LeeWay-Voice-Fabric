@@ -77,6 +77,31 @@ test('wake phrases activate a bounded hands-free turn and unrelated speech stays
   processor.dispose();
 });
 
+test('transcript matching active Agent Lee playout is suppressed as speaker echo', async () => {
+  const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
+  let playing = false;
+  const inputs = [];
+  const events = [];
+  const processor = createGovernedConversationProcessor({
+    authorizeInput: async ({text}) => { inputs.push(text); return true; },
+    generateResponse: async () => 'The Agent status is live in the system panel.',
+    authorizeResponse: async () => true,
+    output: {
+      get playing() { return playing; },
+      async speak() { playing = true; await new Promise(resolve => setTimeout(resolve, 25)); playing = false; return {}; },
+      async stop() {},
+    },
+    onEvent: event => events.push(event),
+  });
+  const session = new RealtimeVoiceSession({sessionId: 'playback-echo', processors: [processor]});
+  await session.dispatch(finalFrame(session, 'first', 'hello'));
+  await waitFor(() => playing, 'Agent Lee playback');
+  await session.dispatch(finalFrame(session, 'echo', 'the agent status is live'));
+  await new Promise(resolve => setTimeout(resolve, 35));
+  assert.deepEqual(inputs, ['hello']);
+  assert.ok(events.some(event => event.type === 'conversation.transcript.echo_suppressed'));
+});
+
 test('response governance can reject generated text without invoking voice output', async () => {
   const {RealtimeVoiceSession, createGovernedConversationProcessor} = await modules();
   let spoken = 0;
@@ -209,4 +234,5 @@ test('Voice SDK output rejects an unapproved fallback before speech', async () =
   await assert.rejects(output.prepare(), /instead of required/);
   assert.equal(speaks, 0);
 });
+
 
