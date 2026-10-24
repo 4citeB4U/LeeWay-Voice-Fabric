@@ -8,6 +8,7 @@ function setup({nativeDecoder=false,gpu=false,model}={}){let now=0,id=0;const ti
 test('conversation Chatterbox uses the pinned Turbo worker while default clients remain unchanged',()=>{
  const conversation=setup({model:'turbo'});conversation.voice.createWorker();
  assert.equal(new URL(conversation.workerUrls[0].url).searchParams.get('model'),'turbo');
+ assert.equal(new URL(conversation.workerUrls[0].url).searchParams.get('v'),'20261024-chatterbox-turbo-quality1');
  const standard=setup();standard.voice.createWorker();
  assert.equal(new URL(standard.workerUrls[0].url).searchParams.has('model'),false);
 });
