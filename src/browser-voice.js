@@ -41,7 +41,7 @@
       this.options=options;this.ready=false;this.loading=null;this.epoch=0;this.id=0;
       this.pending=new Map();this.sources=new Set();this.finishPlayback=new Set();this.device=null;this.lifecycle=0;
       this.exaggeration=.25;
-      this.playbackRate=1.22;
+      this.playbackRate=1;
     }
     static get download(){return {model:'onnx-community/chatterbox-ONNX',revision:REVISION,webgpuBytes:1499401538,wasmBytes:1548283901,referenceBytes:720078};}
     static chunks(text){return chunks(text);}
@@ -220,7 +220,7 @@
         media.play().catch(error=>{onState(`Browser audio playback rejected (${error?.name||'Error'}): ${error?.message||'unknown error'}.`);finish(error);});
       });
     }
-    setPace(value){this.playbackRate=Math.max(.6,Math.min(1.6,Number(value)||1.22));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
+    setPace(value){this.playbackRate=Math.max(.6,Math.min(1.6,Number(value)||1));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
     stop(){
       ++this.epoch;this.worker?.postMessage({type:'stop',epoch:this.epoch});
       this.nativeDecoder?.cancel(true);
