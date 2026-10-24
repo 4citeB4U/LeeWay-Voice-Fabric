@@ -56,3 +56,44 @@ voice communication does not authorize device actions or bypass Formula
 and independent Veritas. Studio microphone and live duplex microphone
 must not both be activated as independent capture consumers.
 Manifest drift requires review; the verifier NEVER overwrites files.
+
+## Exact pinned restore
+
+The source manifest records the exact Edge RTC and Device Bridge commit
+identifiers. After cloning the LeeWay Voice Fabric integration branch, run:
+
+    node scripts/voice-duplex-restore.mjs restore
+    node scripts/voice-duplex-restore.mjs restore-install
+    npm run voice:duplex:start
+
+The start command serves the existing Studio and the standalone Edge RTC
+conversation page from loopback where those ports are not already running.
+Kokoro, Machine Consciousness, and optional Ollama are independent providers
+and their readiness must be checked separately.
+
+The first action only clones an absent Edge RTC checkout at the pinned
+commit and verifies its SHA-256 lock. The second also executes npm ci.
+Existing checkouts are never force-replaced. On a different OS the exact
+source file digests normalize CRLF to LF for portability.
+
+Device Bridge remains independent; use its matching integration branch and
+node operator/device-bridge-cli.mjs voice-status / voice-open.
+
+## Deploy into an existing live Studio without replacing the UI
+
+To update an already-running canonical Studio checkout that has different
+owner-specific voice/tuning changes, use an additive deployment:
+
+    npm run voice:duplex:deploy -- "E:\LeeWay-Work\pc-consciousness-live\voice"
+
+The command checks exact Studio anchors, takes an immutable backup under
+the target's .leeway-voice-backups directory, inserts only the new Live
+Duplex panel, and copies one standalone adapter script. If an identical
+integration is already installed, it exits with ALREADY_INTEGRATED;
+different existing code fails closed rather than being overwritten.
+
+The operator may then use the original Studio host, such as
+http://127.0.0.1:8877/studio.html, keeping its existing local Kokoro
+provider/API and voice-control layout while exposing the standalone
+conversation engine in a collapsed panel. Verify its voice synthesis
+provider and physical barge-in separately before production use.

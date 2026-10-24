@@ -22,5 +22,10 @@
     "voice-fabric/src/realtime-voice-session.mjs": "c941290c3caf5f63bb1d7571d0bb5568521bbc9cb139133d638415d843f6100c",
     "voice-fabric/src/realtime-conversation-pipeline.mjs": "cfefb058e964747a2db1252922731f1950c32e0a34623c62d049ce745c78734a",
     "voice-fabric/src/speech-text-normalizer.mjs": "a58e43c3582dde12a15ade42fa9441354acb2dc99cdc67d5ffc6eb0bbbf2005c"
-  }
+  },
+  "edgeRtcCommit": "0d50c4dccea1a4b2789a8718e9d57a2390f882a5",
+  "edgeRtcBranch": "codex/voice-duplex-lock-v1-20261024",
+  "deviceBridgeRepository": "https://github.com/4citeB4U/LEEWAY-DEVICE-BRIDGE",
+  "deviceBridgeCommit": "dd2d38a9eafaa032328889065b75b3476761d864",
+  "deviceBridgeBranch": "codex/voice-duplex-device-bridge-v1-20261024"
 }
