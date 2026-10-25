@@ -30,3 +30,23 @@ The GitHub Pages frontend and versioned SDK source may be hosted through GitHub.
 ## Release boundary
 
 Draft PR testing covers mock-engine local SDK behavior, WAV encoding and existing authentication regressions, **not real iPhone/Android Kokoro model downloads, latency, memory pressure, audible output, or cross-device owner setting synchronization**. Pin and audit remote model/runtime assets before a production SDK release.
+
+## One Agent Lee identity across each owner's devices
+
+Use the existing owner-published `LEEWAY_VOICE_FABRIC` binding as the authority, not independent per-device defaults. The portable SDK now exposes `connectCanonical({client})`, `applyCanonical(binding)`, `disconnectCanonical()`, and `getSettings().canonicalRevision`. The existing read-only `createLeeWayVoiceClient` supplies `current()` and `subscribe()` on authorized same-origin deployments:
+
+```js
+import {createLeeWayDeviceVoice} from './src/device-voice-sdk.mjs';
+import {createLeeWayVoiceClient} from './src/voice-fabric-client.mjs';
+const leeVoice = createLeeWayDeviceVoice();
+await leeVoice.connectCanonical({
+ client:createLeeWayVoiceClient({endpoint:'/__leeway/voice-binding'})
+});
+await leeVoice.speak('Agent Lee ready.',{requireCanonical:true});
+```
+
+The voice chosen by the owner is published through the **existing** Studio approval and expected-revision process. Other devices consume the canonical speaker revision. When bound, the SDK denies local speaker changes and never falls back to Apple/Android/Windows system speech. It permits speaker changes only via a new owner-authorized canonical publication.
+
+**No claim of complete synchronization:** `/__leeway/voice-binding` currently exists as a loopback Edge RTC development endpoint; it is not a qualified authenticated internet-facing per-user synchronization service. Before iPhone/Android/laptop parity, expose a separately authenticated **read-only** Device Bridge binding for each owner/Agent Lee identity (avoid revealing one owner's settings to another), authorize owner publication from any enrolled device using existing approval, and test revision convergence and acknowledgements across disconnected/reconnected clients. Do not expose loopback publication or owner-CSRF endpoints publicly.
+
+**Identity rule:** Each customer receives a separate owner-bound Agent Lee profile and private canonical revision stream. Same Agent Lee identity and speaker *within that customer's approved devices*, never a shared mutable global voice across all customers. Matching voice ID across devices does not prove acoustically identical output unless model version, quantization, preprocessing, tuning and output DSP are pinned and physically tested.
