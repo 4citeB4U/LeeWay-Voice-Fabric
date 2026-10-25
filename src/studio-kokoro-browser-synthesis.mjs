@@ -30,7 +30,7 @@ export function pcm16Wav(samples,rate=24000){
 let sharedEngine=null;
 export async function synthesizeKokoroInBrowser(text,voicePackageId,{
  Engine=globalThis.LeeWayKokoroVoice,
- loadAdapter=()=>import('./kokoro-browser.js'),
+ loadAdapter=async()=>{if(!globalThis.LeeWayBrowserVoice)await import('./browser-voice.js');await import('./kokoro-browser.js');},
 }={}){
  if(typeof text!=='string'||!text.trim()||text.length>1200)
   throw Error('KOKORO_BROWSER_TEXT_INVALID');
