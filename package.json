@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "exports": {
-    "./voice-client": "./src/voice-fabric-client.mjs"
+    "./voice-client": "./src/voice-fabric-client.mjs",
+    "./device-voice-sdk": "./src/device-voice-sdk.mjs"
   },
   "scripts": {
     "voice:duplex:verify": "node scripts/voice-duplex-restore.mjs verify",

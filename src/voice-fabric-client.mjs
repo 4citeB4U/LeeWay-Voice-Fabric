@@ -59,3 +59,47 @@ export function createLeeWayVoiceClient({
  return Object.freeze({schema:SDK_SCHEMA,current,subscribe,conversationUrl,
   permission:'READ_ONLY',publication:'OWNER_STUDIO_AUTHORIZED_ONLY'});
 }
+
+/** Authenticated Device Bridge voice revision reader for approved remote devices.
+ * Browser credentials are scoped to a previously owner-approved session.
+ * Does not expose any owner publication or mutate voice settings.
+ */
+export function createLeeWayAuthenticatedVoiceBindingClient({
+ origin,fetchImpl=globalThis.fetch?.bind(globalThis),pollIntervalMs=5000
+}={}){
+ let target;
+ try{target=new URL(origin)}catch{throw Error('LEEWAY_VOICE_HTTPS_ORIGIN_REQUIRED')}
+ if(target.protocol!=='https:'||target.pathname!=='/'||target.search||target.hash||
+   target.username||target.password||target.hostname==='localhost'||
+   target.hostname.endsWith('.github.io'))
+   throw Error('LEEWAY_VOICE_HTTPS_ORIGIN_REQUIRED');
+ if(typeof fetchImpl!=='function')throw Error('FETCH_IMPLEMENTATION_REQUIRED');
+ const endpoint=target.origin+'/v1/voice/canonical-binding';
+ const interval=Math.max(1000,Math.min(60000,Number(pollIntervalMs)||5000));
+ async function current({signal}={}){
+  const response=await fetchImpl(endpoint,{method:'GET',credentials:'include',mode:'cors',
+    headers:{accept:'application/json'},cache:'no-store',redirect:'error',signal});
+  if(!response.ok)throw Error('LEEWAY_CANONICAL_VOICE_HTTP_'+response.status);
+  const data=await response.json();
+  if(data.schema!=='leeway.voice-consumer.v1'||data.authority!=='LEEWAY_VOICE_FABRIC'||
+    !/^[a-f0-9]{64}$/.test(data.recordRevision||''))throw Error('LEEWAY_CANONICAL_RESPONSE_INVALID');
+  const binding=requireVoiceBinding(data);
+  return Object.freeze({...binding,revision:data.recordRevision});
+ }
+ function subscribe(callback,{onError=()=>{},signal}={}){
+  if(typeof callback!=='function')throw Error('CALLBACK_REQUIRED');
+  let disposed=false,last=null;
+  async function refresh(){
+   try{
+    const next=await current({signal});
+    if(!disposed&&next.revision!==last){last=next.revision;callback(next);}
+   }catch(error){if(!disposed)onError(error)}
+  }
+  void refresh();
+  const timer=setInterval(()=>{if(!disposed)void refresh()},interval);
+  const dispose=()=>{disposed=true;clearInterval(timer)};
+  signal?.addEventListener?.('abort',dispose,{once:true});
+  return dispose;
+ }
+ return Object.freeze({current,subscribe,endpoint});
+}
