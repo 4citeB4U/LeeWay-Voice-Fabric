@@ -140,7 +140,23 @@ action('addVoice',async()=>{const file=await validateReference($('referenceFile'
 action('saveCopy',async()=>{if(!selected||isHosted()||(!referenceBlob&&selected.provider!=='kokoro'))throw new Error('Select a local model voice or reference voice first.');const modelVoice=selected.provider==='kokoro',name=selected.name+' · Custom';const pkg=await voiceRegistry.save({...selected,id:freshId(name),name,source:modelVoice?'MODEL_LOCAL':'USER_LOCAL',packageType:modelVoice?'MODEL_VOICE':'CLONED_REFERENCE',referenceUrl:null,referenceSha256:null,pace:tuning.pace,exaggeration:synthesis.exaggeration,tuning:{...tuning},synthesis:{...synthesis}},modelVoice?null:referenceBlob);await refresh(pkg.id);status(modelVoice?'Saved a custom Kokoro profile with the same model speaker and your tuning.':'Saved a new custom profile with this speaker and tuning.');});
 action('exportVoice',async()=>{if(!selected)throw new Error('Select a voice profile first.');const snapshot={id:selected.id,hosted:isHosted(),model:selected.provider==='kokoro',tuning:{...tuning},synthesis:{...synthesis}};const pkg=await voiceRegistry.exportPortable(snapshot.id);if(pkg.metadata)pkg.metadata={...pkg.metadata,tuning:snapshot.tuning,synthesis:snapshot.synthesis,pace:snapshot.tuning.pace,exaggeration:snapshot.synthesis.exaggeration};download(new Blob([JSON.stringify(pkg,null,2)],{type:'application/json'}),`${snapshot.id}.voice-package.json`);status(snapshot.hosted?'Hosted profile package downloaded. Generation requires an authorized provider account on the target host.':snapshot.model?'Kokoro profile package downloaded with model voice ID and tuning. The target host needs the Kokoro adapter and model weights; no reference recording is included.':'Portable clone package downloaded, including reference audio and current tuning.');});
 action('removeVoice',async()=>{if(!selected||!['USER_LOCAL','RESEMBLE_HOSTED','MODEL_LOCAL'].includes(selected.source))throw new Error('Built-in profiles cannot be removed.');const id=selected.id;await voiceRegistry.remove(id);try{localStorage.removeItem(`leeway-studio:${id}`);}catch{}hosted=hosted.filter(p=>p.id!==id);selected=null;await refresh('agent-lee-voice-one');status('Profile removed from this browser. Exported packages and provider voices are unchanged.');});
-action('importVoice',async()=>{const file=$('packageFile').files[0];if(!file||file.size>22000000)throw new Error('Choose a portable JSON package smaller than 22 MB.');const pkg=await voiceRegistry.importPortable(JSON.parse(await file.text()));try{localStorage.removeItem(`leeway-studio:${pkg.id}`);}catch{}await refresh(pkg.id);status(`Imported ${pkg.name}.`);});
+action('importVoice',async()=>{
+ const file=$('packageFile').files[0];if(!file)throw new Error('Choose a voice recording or a portable JSON package.');
+ let pkg;
+ if(/\.json$/i.test(file.name)){
+  if(file.size>22000000)throw new Error('Portable JSON must be under 22 MB.');
+  pkg=await voiceRegistry.importPortable(JSON.parse(await file.text()));
+ }else{
+  const audio=await validateReference(file);
+  const name=$('importVoiceName').value.trim()||file.name.replace(/\.[^.]+$/,'');
+  if(!name||name.length>120)throw new Error('Enter a voice name (maximum 120 characters).');
+  pkg=await voiceRegistry.save({id:freshId(name),name,owner:'Local operator',provider:'chatterbox',gender:$('importVoiceGender').value,source:'USER_LOCAL',packageType:'CLONED_REFERENCE'},audio);
+ }
+ try{localStorage.removeItem(`leeway-studio:${pkg.id}`);}catch{}
+ await refresh(pkg.id);
+ status(`Saved ${pkg.name} in your voice choices. Clone synthesis uses the existing browser voice model.`);
+ if(pkg.provider==='chatterbox'&&!voice.ready&&!preparing)$('prepare').click();
+});
 action('refreshHosted',async()=>{const button=$('refreshHosted');button.disabled=true;try{const result=await api('/api/provider/status');if(!result.resemble?.configured)throw new Error('Set RESEMBLE_API_KEY in the Python studio server environment, then refresh.');const found=[];let page=1,pages=1;do{const result=await api(`/api/resemble/voices?page=${page}`);found.push(...(result.voices||[]));pages=Math.min(Number(result.numPages)||1,50);page++;}while(page<=pages);hosted=[...new Map(found.map(p=>[p.id,p])).values()];drawList();$('hostedState').textContent=`Connected · ${hosted.length} account voices available. Generation uses account credits.`;status('Provider catalog refreshed from your connected account.');}catch(error){$('hostedState').textContent=error.message;throw error;}finally{button.disabled=false;}});
 $('referencePlayer').onplay=async()=>{
  const reference=$('referencePlayer');
