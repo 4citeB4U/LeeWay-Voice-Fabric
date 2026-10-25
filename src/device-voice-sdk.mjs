@@ -11,6 +11,7 @@ LICENSE: Existing LeeWay repository terms.
 */
 import {KOKORO_VOICE_PACKAGES} from './voice-package-core.js';
 import {synthesizeKokoroInBrowser} from './studio-kokoro-browser-synthesis.mjs';
+import {createLeeWayVoiceClient} from './voice-fabric-client.mjs';
 const VALID=/^kokoro-(?:af|am|bf|bm)_[a-z0-9]+$/;
 const voices=KOKORO_VOICE_PACKAGES.map(({id,name,gender})=>Object.freeze({
  id,name,gender,provider:'kokoro',offlineAfterCache:true
@@ -26,9 +27,13 @@ export function createLeeWayDeviceVoice({
 }={}){
  if(!ids.has(initialVoice))throw Error('LEEWAY_VOICE_NOT_IN_CATALOG');
  let selected=initialVoice,rate=1,volume=1,player=null,objectUrl=null;
+ let revision=null,canonical=false,unsub=null,authorityState='DEVICE_LOCAL_NOT_SYNCED';
  const settings=()=>Object.freeze({voiceId:selected,rate,volume,provider:'kokoro',
-  execution:'DEVICE_BROWSER_WASM_OR_WEBGPU',serverRequired:false});
+  execution:'DEVICE_BROWSER_WASM_OR_WEBGPU',serverRequired:false,canonicalRevision:revision,
+  synchronized:canonical,authorityState});
  function configure(next={}){
+  if(canonical&&next.voiceId!==undefined&&next.voiceId!==selected)
+   throw Error('LEEWAY_OWNER_VOICE_PUBLICATION_REQUIRED');
   if(next.voiceId!==undefined){
    if(!ids.has(next.voiceId))throw Error('LEEWAY_VOICE_NOT_IN_CATALOG');
   }
@@ -48,7 +53,24 @@ export function createLeeWayDeviceVoice({
   if(player){player.pause();player.removeAttribute?.('src');player=null;}
   if(objectUrl){revokeObjectUrl(objectUrl);objectUrl=null;}
  }
- async function speak(text,{play=true}={}){
+ function applyCanonical(binding){
+  if(!binding||!ids.has(binding.voicePackageId)||typeof binding.revision!=='string'||!binding.revision)
+   throw Error('LEEWAY_CANONICAL_VOICE_INVALID');
+  if(selected!==binding.voicePackageId)stop();
+  selected=binding.voicePackageId;revision=binding.revision;canonical=true;
+  authorityState='LEEWAY_VOICE_FABRIC';return settings();
+ }
+ async function connectCanonical({client=createLeeWayVoiceClient(),onChange=()=>{},onError=()=>{}}={}){
+  if(typeof client.current!=='function'||typeof client.subscribe!=='function')throw Error('LEEWAY_VOICE_CLIENT_INVALID');
+  const first=await client.current();applyCanonical(first);
+  unsub?.();unsub=client.subscribe(binding=>{
+   try{onChange(applyCanonical(binding))}catch(error){authorityState='SYNC_INVALID';onError(error)}
+  },{onError:error=>{authorityState='SYNC_UNAVAILABLE';onError(error)}});
+  return settings();
+ }
+ function disconnectCanonical(){unsub?.();unsub=null;canonical=false;revision=null;authorityState='DEVICE_LOCAL_NOT_SYNCED';}
+ async function speak(text,{play=true,requireCanonical=false}={}){
+  if(requireCanonical&&!canonical)throw Error('LEEWAY_CANONICAL_VOICE_REQUIRED');
   if(typeof text!=='string'||!text.trim()||text.length>1200)throw Error('LEEWAY_VOICE_TEXT_INVALID');
   const snapshot=settings();
   const audio=await synthesize(text,snapshot.voiceId);
@@ -73,7 +95,7 @@ export function createLeeWayDeviceVoice({
  return Object.freeze({
   schema:LEEWAY_DEVICE_VOICE_SDK_SCHEMA,
   listVoices:()=>voices.slice(),
-  getSettings:settings,configure,stop,speak,
+  getSettings:settings,configure,stop,speak,applyCanonical,connectCanonical,disconnectCanonical,
   describe:()=>({schema:LEEWAY_DEVICE_VOICE_SDK_SCHEMA,requiresDeviceModel:true,
    modelDownloadOnFirstUse:true,serverRequired:false,
    note:'Model loading requires network on first use unless cached; not all iOS browsers support WebGPU. WASM depends on device memory.'})
