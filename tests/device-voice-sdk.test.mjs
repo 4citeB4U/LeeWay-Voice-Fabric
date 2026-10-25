@@ -61,3 +61,25 @@ test('canonical revision controls device voice',async()=>{
  sdk.disconnectCanonical();
  await assert.rejects(sdk.speak('hello',{play:false,requireCanonical:true}));
 });
+
+test('authenticated mobile reader converges canonical revision through HTTPS',async()=>{
+ const {createLeeWayAuthenticatedVoiceBindingClient}=await import('../src/voice-fabric-client.mjs');
+ let revision='a'.repeat(64),voice='kokoro-bm_lewis';
+ const client=createLeeWayAuthenticatedVoiceBindingClient({
+  origin:'https://voice.example.org/',
+  fetchImpl:async(url,init)=>{
+   assert.equal(url,'https://voice.example.org/v1/voice/canonical-binding');
+   assert.equal(init.credentials,'include');
+   return {ok:true,json:async()=>({schema:'leeway.voice-consumer.v1',
+    authority:'LEEWAY_VOICE_FABRIC',binding:{voicePackageId:voice},recordRevision:revision})};
+  }
+ });
+ const device=createLeeWayDeviceVoice();
+ await device.connectCanonical({client});
+ assert.equal(device.getSettings().voiceId,voice);
+ voice='kokoro-af_bella';revision='b'.repeat(64);
+ const updated=await client.current();
+ device.applyCanonical(updated);
+ assert.equal(device.getSettings().canonicalRevision,revision);
+ assert.equal(device.getSettings().voiceId,voice);
+});
