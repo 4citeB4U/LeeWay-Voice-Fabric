@@ -35,11 +35,14 @@ try{
  const page=await browser.newPage({viewport:{width:1450,height:920}});
  await page.goto('http://127.0.0.1:'+server.address().port+'/index.html',{waitUntil:'domcontentloaded'});
  await page.evaluate(async()=>{
+  const aecTrack={kind:'audio',readyState:'live',getSettings:()=>({echoCancellation:true,noiseSuppression:true}),stop(){}};
+  Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:{getUserMedia:async()=>({getAudioTracks:()=>[aecTrack],getTracks:()=>[aecTrack]})}});
   class FakeSpeechRecognition{
    constructor(){window.__asr=this}
-   start(){this.onstart?.()}
+   start(track){window.__asrTrack=track;this.onstart?.()}
    stop(){this.onend?.()}
   }
+  window.__expectedAecTrack=aecTrack;
   const module=await import('/src/studio-public-dictation.mjs');
   window.__voiceTest=module.mountPublicDictation(document,{
    hostname:'4citeb4u.github.io',Recognition:FakeSpeechRecognition
@@ -48,6 +51,8 @@ try{
  assert.equal(await page.locator('#publicDictationStart').isVisible(),true);
  assert.equal(await page.locator('#duplexInlineLoad').isVisible(),false);
  await page.locator('#publicDictationStart').click();
+ await page.waitForFunction(()=>window.__asrTrack===window.__expectedAecTrack);
+ assert.equal(await page.evaluate(()=>window.__asrTrack.getSettings().echoCancellation),true);
  await page.evaluate(()=>{
   const r=[{0:{transcript:'Hello Agent Lee'},isFinal:true}];
   window.__asr.onresult?.({results:r,resultIndex:0});

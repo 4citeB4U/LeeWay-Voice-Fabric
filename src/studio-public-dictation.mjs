@@ -16,11 +16,12 @@ export function createBrowserDictation({
  Recognition=globalThis.SpeechRecognition||globalThis.webkitSpeechRecognition,
  onText=()=>{},onState=()=>{},
 }={}){
- let engine=null,active=false;
+ let engine=null,active=false,microphone=null;
  const api={
   supported:typeof Recognition==='function',
-  start(){
+  start(track){
    if(active)return false;
+   if(track && (track.kind!=='audio'||track.readyState!=='live'||track.getSettings?.().echoCancellation!==true))throw Error('AEC_SHARED_MIC_TRACK_UNAVAILABLE');
    if(typeof Recognition!=='function'){onState('unsupported');return false;}
    let instance;
    try{
@@ -54,7 +55,7 @@ export function createBrowserDictation({
     if(!active)return;
     active=false;engine=null;onState('ended');
    };
-   try{instance.start();onState('requesting-microphone');return true}
+   try{instance.start(track);onState('requesting-microphone');return true}
    catch{active=false;engine=null;onState('start-failed');return false}
   },
   stop(){
@@ -147,15 +148,17 @@ export function mountPublicDictation(doc=globalThis.document,{
    connect.disabled=false;
   }
  });
- // REGION: VOICE.FABRIC.ECHO.GATE; TAG: ONE_CAPTURE_OWNER_NO_SPEAKER_LOOP
- // Stop recognition before a model turn can produce audio; require explicit new listen.
- let lastSubmitted='',turnPending=false;
+ // REGION: VOICE.FABRIC.SHARED.AEC; TAG: KEEP_CAPTURE_ACTIVE_THROUGH_PLAYOUT
+ // Desktop AEC track is shared with recognition; only transcripts are admission-gated.
+ let lastSubmitted='',turnPending=false,sharedStream=null,lastResponse='';
+ const echo=text=>{const normalize=s=>String(s||'').toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();const t=normalize(text),r=normalize(lastResponse);return !!r&&t.length>8&&(r.includes(t)||t.includes(r.slice(0,Math.min(r.length,80))))};
  async function submitFinal(text){
   if(!transport.authenticated||text===lastSubmitted)return;
   lastSubmitted=text;
   connectionState.textContent='Submitting final transcript to governed LeeWay voice service…';
   try{
    const result=await transport.turn(text,{mode:provider.value});
+   lastResponse=result.text;
    const field=doc.getElementById('speechText');
    if(field)field.value=result.text;
    const controller=globalThis.LeeWayStudioControls;
@@ -170,18 +173,17 @@ export function mountPublicDictation(doc=globalThis.document,{
    connectionState.textContent='Conversation or audio playback failed: '+String(error.message||error);
   }finally{
    turnPending=false;
-   start.disabled=false;
+   start.disabled=asr.active;
   }
  }
  const signal=phase=>doc.dispatchEvent(new CustomEvent('leeway:duplex-activity',{
   detail:{active:phase!=='idle',kind:'phase',phase,inputRms:0}}));
  const asr=createBrowserDictation({Recognition,
   onText:(text,info)=>{
-   if(turnPending)return;
+   if(turnPending||echo(text))return;
    transcript.textContent=text;
    if(info?.final&&text&&transport.authenticated){
     turnPending=true;
-    asr.stop(); // Never capture the Kokoro output as a new user turn.
     void submitFinal(text);
    }
   },
@@ -203,9 +205,19 @@ export function mountPublicDictation(doc=globalThis.document,{
    signal(asr.active?'listening':'idle');
   },
  });
- start.addEventListener('click',()=>asr.start());
- stop.addEventListener('click',()=>asr.stop());
- globalThis.addEventListener?.('pagehide',()=>asr.stop());
+ start.addEventListener('click',async()=>{
+  start.disabled=true;
+  try{
+   sharedStream ||= await globalThis.navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+   const track=sharedStream.getAudioTracks()[0];
+   if(track?.getSettings?.().echoCancellation!==true)throw Error('AEC_NOT_ACTIVE_ON_CAPTURED_MIC_TRACK');
+   if(!asr.start(track))throw Error('SHARED_AEC_RECOGNITION_NOT_STARTED');
+   status.textContent='Shared WebRTC microphone active, AEC=true. Listening through playback.';
+  }catch(error){status.textContent='Shared-AEC unavailable: '+String(error.message||error);start.disabled=false;}
+ });
+ const shutdown=()=>{asr.stop();sharedStream?.getTracks().forEach(track=>track.stop());sharedStream=null;};
+ stop.addEventListener('click',shutdown);
+ globalThis.addEventListener?.('pagehide',shutdown);
  signal('idle');
  return asr;
 }
