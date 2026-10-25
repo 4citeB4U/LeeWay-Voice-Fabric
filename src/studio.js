@@ -196,7 +196,14 @@ globalThis.LeeWayStudioControls={
  speakConversation:async(text,synthesizeRemote)=>{
   if(typeof text!=='string'||!text.trim()||text.length>1200)throw Error('CONVERSATION_SPEECH_TEXT_INVALID');
   if(!selected||busy)throw Error('STUDIO_VOICE_NOT_READY');
-  if(selected.provider!=='kokoro'||typeof synthesizeRemote!=='function')throw Error('KOKORO_VOICE_REQUIRED');
+  if(selected.provider==='chatterbox'){
+   if(!voice.ready)throw Error('CLONED_VOICE_MODEL_NOT_PREPARED');
+   if(!referenceBlob)throw Error('CLONED_VOICE_REFERENCE_NOT_LOADED');
+   $('speechText').value=text;
+   await streamAudition();
+   return {spoken:true,voiceId:selected.id,provider:'chatterbox'};
+  }
+  if(selected.provider!=='kokoro'||typeof synthesizeRemote!=='function')throw Error('SUPPORTED_KOKORO_OR_CLONED_VOICE_REQUIRED');
   const voiceId='kokoro-'+selected.voiceId;
   const reply=await synthesizeRemote(text,voiceId);
   const bytes=Uint8Array.from(atob(reply.audioContent),c=>c.charCodeAt(0));
