@@ -70,7 +70,7 @@ export function createLeeWayDeviceVoice({
  }
  function disconnectCanonical(){unsub?.();unsub=null;canonical=false;revision=null;authorityState='DEVICE_LOCAL_NOT_SYNCED';}
  async function speak(text,{play=true,requireCanonical=false}={}){
-  if(requireCanonical&&!canonical)throw Error('LEEWAY_CANONICAL_VOICE_REQUIRED');
+  if(requireCanonical&&(!canonical||authorityState!=='LEEWAY_VOICE_FABRIC'))throw Error('LEEWAY_CANONICAL_VOICE_REQUIRED');
   if(typeof text!=='string'||!text.trim()||text.length>1200)throw Error('LEEWAY_VOICE_TEXT_INVALID');
   const snapshot=settings();
   const audio=await synthesize(text,snapshot.voiceId);
