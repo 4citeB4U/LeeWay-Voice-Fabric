@@ -10,6 +10,8 @@ AUTHORITY: microphone starts only after user click. The browser might send
 speech to its recognition provider. This is NOT offline LeeWay ASR.
 LICENSE: existing repository terms.
 */
+import {createLeeWayVoiceTransport} from './studio-https-voice-client.mjs';
+
 export function createBrowserDictation({
  Recognition=globalThis.SpeechRecognition||globalThis.webkitSpeechRecognition,
  onText=()=>{},onState=()=>{},
@@ -84,9 +86,11 @@ export function mountPublicDictation(doc=globalThis.document,{
  controls.className='leeway-public-dictation';
  controls.innerHTML=[
   '<div class="leeway-duplex-controls">',
+  '<button id="publicVoiceConnect" type="button">Connect authenticated Agent Lee</button>',
   '<button id="publicDictationStart" type="button" class="primary">Enable microphone & listen</button>',
   '<button id="publicDictationStop" type="button" disabled>Stop listening</button>',
   '</div>',
+  '<p id="publicVoiceConnection" role="status" aria-live="polite">No authenticated LeeWay voice service configured.</p>',
   '<p id="publicDictationStatus" role="status" aria-live="polite">Microphone off. Dictation uses this browser\'s speech recognition service.</p>',
   '<section class="panel" aria-label="Recognized speech"><h3>You said</h3>',
   '<div id="publicDictationText" aria-live="polite"></div></section>',
@@ -102,10 +106,39 @@ export function mountPublicDictation(doc=globalThis.document,{
  const stop=controls.querySelector('#publicDictationStop');
  const status=controls.querySelector('#publicDictationStatus');
  const transcript=controls.querySelector('#publicDictationText');
+ const connect=controls.querySelector('#publicVoiceConnect');
+ const connectionState=controls.querySelector('#publicVoiceConnection');
+ const origin=doc.querySelector('meta[name="leeway-voice-api-origin"]')?.content?.trim()||'';
+ const transport=createLeeWayVoiceTransport({origin});
+ connect.disabled=!transport.configured;
+ if(transport.configured)connectionState.textContent='Secure LeeWay voice service configured. Sign in to connect.';
+ connect.addEventListener('click',async()=>{
+  connect.disabled=true;
+  connectionState.textContent='Checking authenticated LeeWay voice session…';
+  try{await transport.connect();connectionState.textContent='Authenticated LeeWay voice session connected.';}
+  catch(error){connectionState.textContent='LeeWay voice connection unavailable: '+String(error.message||error);connect.disabled=false;}
+ });
+ let lastSubmitted='';
+ async function submitFinal(text){
+  if(!transport.authenticated||text===lastSubmitted)return;
+  lastSubmitted=text;
+  connectionState.textContent='Submitting final transcript to governed LeeWay voice service…';
+  try{
+   const result=await transport.turn(text);
+   const field=doc.getElementById('speechText');
+   if(field)field.value=result.text;
+   connectionState.textContent='Verified LeeWay response displayed. Playback requires authenticated voice playout.';
+  }catch(error){
+   connectionState.textContent='LeeWay response withheld: '+String(error.message||error);
+  }
+ }
  const signal=phase=>doc.dispatchEvent(new CustomEvent('leeway:duplex-activity',{
   detail:{active:phase!=='idle',kind:'phase',phase,inputRms:0}}));
  const asr=createBrowserDictation({Recognition,
-  onText:text=>{transcript.textContent=text},
+  onText:(text,info)=>{
+   transcript.textContent=text;
+   if(info?.final&&text)void submitFinal(text);
+  },
   onState:state=>{
    const labels={
     listening:'Listening. Speak normally.',hearing:'Hearing speech…',
