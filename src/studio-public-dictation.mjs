@@ -115,7 +115,16 @@ export function mountPublicDictation(doc=globalThis.document,{
  const origin=doc.querySelector('meta[name="leeway-voice-api-origin"]')?.content?.trim()||'';
  const transport=createLeeWayVoiceTransport({origin});
  connect.disabled=!transport.configured;
- if(transport.configured)connectionState.textContent='Secure LeeWay voice service configured. Sign in to connect.';
+ if(transport.configured){
+  connectionState.textContent='Checking existing approved Agent Lee session…';
+  void transport.connect().then(()=>{
+   connectionState.textContent='Agent Lee connected using existing device approval.';
+   connect.disabled=true;
+  }).catch(()=>{
+   connectionState.textContent='This browser needs owner approval for a new or expired session.';
+   connect.disabled=false;
+  });
+ }
  connect.addEventListener('click',async()=>{
   connect.disabled=true;
   connectionState.textContent='Checking your existing LeeWay connection…';
