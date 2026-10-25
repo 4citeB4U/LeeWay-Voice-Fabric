@@ -192,6 +192,15 @@ globalThis.LeeWayStudioControls={
  snapshot:()=>({phase:studioPhase,selected:selected?{...selected}:null,tuning:{...tuning},synthesis:{...synthesis},runtime:$('runtime').value,busy,preparing,ready:!$('generate').disabled,hasTake:!!rendered,source:rawLabel,epoch}),
  setBeforePlay:handler=>{beforePlay=handler;},
  generate,stream:streamAudition,stop:interruptStudio,play:playRendered,select,
+ // Authenticated conversation uses the original Studio voice, synthesis and playback owner.
+ speakConversation:async(text)=>{
+  if(typeof text!=='string'||!text.trim()||text.length>1500)throw Error('CONVERSATION_SPEECH_TEXT_INVALID');
+  if(!selected||busy)throw Error('STUDIO_VOICE_NOT_READY');
+  if(!isHosted()&&usesLocal()&&!localReady())throw Error('LOCAL_KOKORO_NOT_READY');
+  const field=$('speechText');field.value=text.trim();
+  await streamAudition();
+  return {spoken:true,voiceId:selected.id};
+ },
  loadShared:async(id,settings)=>{await select(id);if(selected?.id!==id)throw new Error('Shared voice is not in this Studio catalog.');tuning=normalizeTuning(settings);fillControls();persist();if(raw)await rerender({autoplay:false});},
  reportError:fail,
 };

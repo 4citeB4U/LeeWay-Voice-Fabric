@@ -147,11 +147,16 @@ export function mountPublicDictation(doc=globalThis.document,{
    const result=await transport.turn(text,{mode:provider.value});
    const field=doc.getElementById('speechText');
    if(field)field.value=result.text;
+   const controller=globalThis.LeeWayStudioControls;
+   if(typeof controller?.speakConversation!=='function')throw Error('STUDIO_AUDIO_CONTROLLER_UNAVAILABLE');
+   connectionState.textContent='Authenticated answer received. Synthesizing with selected Studio voice...';
+   await controller.speakConversation(result.text);
    connectionState.textContent=result.verified?
-    'Verified LeeWay response displayed. Playback requires authenticated voice playout.':
-    'Qwen model response displayed (not Veritas verified, not GPU execution). Playback is not connected.';
+    'Verified LeeWay response played through the selected Studio voice.':
+    'Qwen answer played through Studio voice (model output not Veritas or GPU verified).';
   }catch(error){
-   connectionState.textContent='LeeWay response withheld: '+String(error.message||error);
+   lastSubmitted='';
+   connectionState.textContent='Conversation or audio playback failed: '+String(error.message||error);
   }
  }
  const signal=phase=>doc.dispatchEvent(new CustomEvent('leeway:duplex-activity',{
