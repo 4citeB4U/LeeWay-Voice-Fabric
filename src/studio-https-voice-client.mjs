@@ -108,6 +108,12 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
    receiptHash:result.receiptHash||null,verified:validMachine,
    gpuInferenceVerified:false,mode};
  }
- return Object.freeze({configured:!!base,origin:base,connect,login,beginPairing,claimPairing,turn,
+ async function synthesize(text,voicePackageId){
+  if(!authenticated)throw Error('VOICE_SESSION_REQUIRED');
+  const output=await request('/v1/voice/synthesize',{method:'POST',headers:{'content-type':'application/json','x-leeway-voice-csrf':csrfToken},body:JSON.stringify({schema:'leeway.voice.synthesize.v1',text,voicePackageId})});
+  if(output.schema!=='leeway.voice.synthesis-result.v1')throw Error('VOICE_SYNTHESIS_RESPONSE_INVALID');
+  return output;
+ }
+ return Object.freeze({configured:!!base,origin:base,connect,login,beginPairing,claimPairing,turn,synthesize,
   get authenticated(){return authenticated},disconnect(){authenticated=false;csrfToken=null}});
 }

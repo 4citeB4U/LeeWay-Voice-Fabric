@@ -193,13 +193,19 @@ globalThis.LeeWayStudioControls={
  setBeforePlay:handler=>{beforePlay=handler;},
  generate,stream:streamAudition,stop:interruptStudio,play:playRendered,select,
  // Authenticated conversation uses the original Studio voice, synthesis and playback owner.
- speakConversation:async(text)=>{
-  if(typeof text!=='string'||!text.trim()||text.length>1500)throw Error('CONVERSATION_SPEECH_TEXT_INVALID');
+ speakConversation:async(text,synthesizeRemote)=>{
+  if(typeof text!=='string'||!text.trim()||text.length>1200)throw Error('CONVERSATION_SPEECH_TEXT_INVALID');
   if(!selected||busy)throw Error('STUDIO_VOICE_NOT_READY');
-  if(!isHosted()&&usesLocal()&&!localReady())throw Error('LOCAL_KOKORO_NOT_READY');
-  const field=$('speechText');field.value=text.trim();
-  await streamAudition();
-  return {spoken:true,voiceId:selected.id};
+  if(selected.provider!=='kokoro'||typeof synthesizeRemote!=='function')throw Error('KOKORO_VOICE_REQUIRED');
+  const voiceId='kokoro-'+selected.voiceId;
+  const reply=await synthesizeRemote(text,voiceId);
+  const bytes=Uint8Array.from(atob(reply.audioContent),c=>c.charCodeAt(0));
+  if(bytes.length<44||bytes.length>18000000)throw Error('KOKORO_AUDIO_INVALID');
+  const player=$('outputPlayer');player.pause();if(outputURL)URL.revokeObjectURL(outputURL);
+  outputURL=URL.createObjectURL(new Blob([bytes],{type:'audio/wav'}));player.src=outputURL;
+  const field=$('speechText');field.value=text;
+  await player.play();phase('speaking');studioEvent('playback-start',{source:'authenticated-kokoro',voicePackageId:voiceId});
+  return {spoken:true,voiceId};
  },
  loadShared:async(id,settings)=>{await select(id);if(selected?.id!==id)throw new Error('Shared voice is not in this Studio catalog.');tuning=normalizeTuning(settings);fillControls();persist();if(raw)await rerender({autoplay:false});},
  reportError:fail,
