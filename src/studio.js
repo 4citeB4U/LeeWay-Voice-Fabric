@@ -3,6 +3,7 @@
 WHY=bind the spatial UI to real synthesis and playback; WHERE=existing voice owner;
 WHEN=user gesture; HOW=existing provider, DSP worker, epoch cancellation and readback.
 AUTHORIZED ROLES: Studio operator. LICENSE: Existing repository terms. */
+import {synthesizeKokoroInBrowser} from './studio-kokoro-browser-synthesis.mjs';
 import {voiceRegistry} from './voice-registry.js';
 import {DEFAULT_TUNING,normalizeTuning} from './studio-audio.js';
 const $=id=>document.getElementById(id), Voice=globalThis.LeeWayBrowserVoice;
@@ -221,13 +222,25 @@ globalThis.LeeWayStudioControls={
   }
   if(selected.provider!=='kokoro'||typeof synthesizeRemote!=='function')throw Error('SUPPORTED_KOKORO_OR_CLONED_VOICE_REQUIRED');
   const voiceId='kokoro-'+selected.voiceId;
-  const reply=await synthesizeRemote(text,voiceId);
-  const bytes=Uint8Array.from(atob(reply.audioContent),c=>c.charCodeAt(0));
+  // Prefer the existing LeeWay browser Kokoro engine on GitHub Pages: no
+  // dependency on the owner's laptop Python voice server.
+  let bytes,voiceExecution='browser-kokoro';
+  try{
+   const local=await synthesizeKokoroInBrowser(text,voiceId);
+   bytes=local.wav;
+  }catch(browserError){
+   // Existing authenticated Device Bridge route is a compatibility fallback.
+   // It must not silently claim browser synthesis.
+   if(typeof synthesizeRemote!=='function')throw browserError;
+   const reply=await synthesizeRemote(text,voiceId);
+   bytes=Uint8Array.from(atob(reply.audioContent),c=>c.charCodeAt(0));
+   voiceExecution='authenticated-remote-kokoro';
+  }
   if(bytes.length<44||bytes.length>18000000)throw Error('KOKORO_AUDIO_INVALID');
   const player=$('outputPlayer');player.pause();if(outputURL)URL.revokeObjectURL(outputURL);
   outputURL=URL.createObjectURL(new Blob([bytes],{type:'audio/wav'}));player.src=outputURL;
   const field=$('speechText');field.value=text;
-  await player.play();phase('speaking');studioEvent('playback-start',{source:'authenticated-kokoro',voicePackageId:voiceId});
+  await player.play();phase('speaking');studioEvent('playback-start',{source:voiceExecution,voicePackageId:voiceId});
   await new Promise((resolve,reject)=>{
    if(player.ended)return resolve();
    const finish=error=>{player.removeEventListener('ended',ended);player.removeEventListener('error',failed);player.removeEventListener('pause',paused);error?reject(error):resolve();};
