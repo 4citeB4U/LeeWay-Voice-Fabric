@@ -150,7 +150,7 @@ export function mountPublicDictation(doc=globalThis.document,{
    const controller=globalThis.LeeWayStudioControls;
    if(typeof controller?.speakConversation!=='function')throw Error('STUDIO_AUDIO_CONTROLLER_UNAVAILABLE');
    connectionState.textContent='Authenticated answer received. Synthesizing with selected Studio voice...';
-   await controller.speakConversation(result.text);
+   await controller.speakConversation(result.text,transport.synthesize);
    connectionState.textContent=result.verified?
     'Verified LeeWay response played through the selected Studio voice.':
     'Qwen answer played through Studio voice (model output not Veritas or GPU verified).';
