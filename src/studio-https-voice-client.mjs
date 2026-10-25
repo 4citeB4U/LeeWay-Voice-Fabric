@@ -58,6 +58,34 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
   csrfToken=response.csrfToken;authenticated=true;
   return {connected:true,authority:response.authority};
  }
+ async function beginPairing(appId='leeway.voice.studio'){
+  if(appId!=='leeway.voice.studio')throw Error('APPLICATION_NOT_REGISTERED');
+  const result=await request('/v1/voice/pair/start',{method:'POST',
+   headers:{'content-type':'application/json'},body:JSON.stringify({appId})});
+  if(result.schema!=='leeway.voice.pair-start.v1'||
+    !/^[a-f0-9]{32}$/.test(result.id||'')||
+    !/^[a-f0-9]{64}$/.test(result.token||'')||
+    !/^[0-9]{6}$/.test(result.displayCode||'')||
+   result.expires<=Date.now()||result.expires>Date.now()+180000)
+   throw Error('OWNER_PAIRING_CHALLENGE_INVALID');
+  authenticated=false;csrfToken=null;
+  return {id:result.id,token:result.token,displayCode:result.displayCode,expires:result.expires};
+ }
+ async function claimPairing(challenge){
+  if(!challenge||!/^[a-f0-9]{32}$/.test(challenge.id||'')||
+   !/^[a-f0-9]{64}$/.test(challenge.token||''))throw Error('PAIRING_CHALLENGE_INVALID');
+  const result=await request('/v1/voice/pair/claim',{method:'POST',
+   headers:{'content-type':'application/json'},
+   body:JSON.stringify({id:challenge.id,token:challenge.token})});
+  if(result.status==='WAITING_FOR_OWNER_APPROVAL')return {approved:false};
+  if(result.schema!=='leeway.voice.session.v1'||result.authenticated!==true||
+    result.authority!=='LEEWAY_DEVICE_BRIDGE_VOICE'||
+    result.appId!=='leeway.voice.studio'||result.scope!=='voice:turn:readonly'||
+    !/^[a-f0-9]{64}$/.test(result.csrfToken||''))
+   throw Error('OWNER_APPROVAL_SESSION_INVALID');
+  csrfToken=result.csrfToken;authenticated=true;
+  return {approved:true,appId:result.appId};
+ }
  async function turn(transcript,{mode='machine'}={}){
   if(!['machine','llm'].includes(mode))throw Error('LEEWAY_VOICE_MODE_INVALID');
   if(!authenticated)throw Error('LEEWAY_VOICE_SESSION_REQUIRED');
@@ -80,6 +108,6 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
    receiptHash:result.receiptHash||null,verified:validMachine,
    gpuInferenceVerified:false,mode};
  }
- return Object.freeze({configured:!!base,origin:base,connect,login,turn,
+ return Object.freeze({configured:!!base,origin:base,connect,login,beginPairing,claimPairing,turn,
   get authenticated(){return authenticated},disconnect(){authenticated=false;csrfToken=null}});
 }
