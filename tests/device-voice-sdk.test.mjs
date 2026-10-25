@@ -47,3 +47,17 @@ test('device playback applies local speed and loudness settings',async()=>{
  assert.equal(result.played,true);
  sdk.stop();
 });
+
+test('canonical revision controls device voice',async()=>{
+ let emit;
+ const client={current:async()=>({voicePackageId:'kokoro-bm_lewis',revision:'r1'}),
+ subscribe:fn=>{emit=fn;return ()=>{};}};
+ const sdk=createLeeWayDeviceVoice();
+ await sdk.connectCanonical({client});
+ assert.equal(sdk.getSettings().voiceId,'kokoro-bm_lewis');
+ assert.throws(()=>sdk.configure({voiceId:'kokoro-am_michael'}));
+ emit({voicePackageId:'kokoro-af_bella',revision:'r2'});
+ assert.equal(sdk.getSettings().canonicalRevision,'r2');
+ sdk.disconnectCanonical();
+ await assert.rejects(sdk.speak('hello',{play:false,requireCanonical:true}));
+});
