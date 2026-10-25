@@ -196,7 +196,14 @@ globalThis.LeeWayStudioControls={
  speakConversation:async(text,synthesizeRemote)=>{
   if(typeof text!=='string'||!text.trim()||text.length>1200)throw Error('CONVERSATION_SPEECH_TEXT_INVALID');
   if(!selected||busy)throw Error('STUDIO_VOICE_NOT_READY');
-  if(selected.provider!=='kokoro'||typeof synthesizeRemote!=='function')throw Error('KOKORO_VOICE_REQUIRED');
+  if(selected.provider==='chatterbox'){
+   if(!voice.ready)throw Error('CLONED_VOICE_MODEL_NOT_PREPARED');
+   if(!referenceBlob)throw Error('CLONED_VOICE_REFERENCE_NOT_LOADED');
+   $('speechText').value=text;
+   await streamAudition();
+   return {spoken:true,voiceId:selected.id,provider:'chatterbox'};
+  }
+  if(selected.provider!=='kokoro'||typeof synthesizeRemote!=='function')throw Error('SUPPORTED_KOKORO_OR_CLONED_VOICE_REQUIRED');
   const voiceId='kokoro-'+selected.voiceId;
   const reply=await synthesizeRemote(text,voiceId);
   const bytes=Uint8Array.from(atob(reply.audioContent),c=>c.charCodeAt(0));
@@ -205,6 +212,13 @@ globalThis.LeeWayStudioControls={
   outputURL=URL.createObjectURL(new Blob([bytes],{type:'audio/wav'}));player.src=outputURL;
   const field=$('speechText');field.value=text;
   await player.play();phase('speaking');studioEvent('playback-start',{source:'authenticated-kokoro',voicePackageId:voiceId});
+  await new Promise((resolve,reject)=>{
+   if(player.ended)return resolve();
+   const finish=error=>{player.removeEventListener('ended',ended);player.removeEventListener('error',failed);player.removeEventListener('pause',paused);error?reject(error):resolve();};
+   const ended=()=>finish(),failed=()=>finish(Error('KOKORO_PLAYBACK_FAILED'));
+   const paused=()=>finish(Error('KOKORO_PLAYBACK_INTERRUPTED'));
+   player.addEventListener('ended',ended,{once:true});player.addEventListener('error',failed,{once:true});player.addEventListener('pause',paused,{once:true});
+  });
   return {spoken:true,voiceId};
  },
  loadShared:async(id,settings)=>{await select(id);if(selected?.id!==id)throw new Error('Shared voice is not in this Studio catalog.');tuning=normalizeTuning(settings);fillControls();persist();if(raw)await rerender({autoplay:false});},
