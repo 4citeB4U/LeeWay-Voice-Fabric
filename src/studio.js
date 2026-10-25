@@ -205,6 +205,13 @@ globalThis.LeeWayStudioControls={
   outputURL=URL.createObjectURL(new Blob([bytes],{type:'audio/wav'}));player.src=outputURL;
   const field=$('speechText');field.value=text;
   await player.play();phase('speaking');studioEvent('playback-start',{source:'authenticated-kokoro',voicePackageId:voiceId});
+  await new Promise((resolve,reject)=>{
+   if(player.ended)return resolve();
+   const finish=error=>{player.removeEventListener('ended',ended);player.removeEventListener('error',failed);player.removeEventListener('pause',paused);error?reject(error):resolve();};
+   const ended=()=>finish(),failed=()=>finish(Error('KOKORO_PLAYBACK_FAILED'));
+   const paused=()=>finish(Error('KOKORO_PLAYBACK_INTERRUPTED'));
+   player.addEventListener('ended',ended,{once:true});player.addEventListener('error',failed,{once:true});player.addEventListener('pause',paused,{once:true});
+  });
   return {spoken:true,voiceId};
  },
  loadShared:async(id,settings)=>{await select(id);if(selected?.id!==id)throw new Error('Shared voice is not in this Studio catalog.');tuning=normalizeTuning(settings);fillControls();persist();if(raw)await rerender({autoplay:false});},

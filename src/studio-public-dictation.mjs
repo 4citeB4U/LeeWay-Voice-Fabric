@@ -138,7 +138,9 @@ export function mountPublicDictation(doc=globalThis.document,{
    connect.disabled=false;
   }
  });
- let lastSubmitted='';
+ // REGION: VOICE.FABRIC.ECHO.GATE; TAG: ONE_CAPTURE_OWNER_NO_SPEAKER_LOOP
+ // Stop recognition before a model turn can produce audio; require explicit new listen.
+ let lastSubmitted='',turnPending=false;
  async function submitFinal(text){
   if(!transport.authenticated||text===lastSubmitted)return;
   lastSubmitted=text;
@@ -157,14 +159,22 @@ export function mountPublicDictation(doc=globalThis.document,{
   }catch(error){
    lastSubmitted='';
    connectionState.textContent='Conversation or audio playback failed: '+String(error.message||error);
+  }finally{
+   turnPending=false;
+   start.disabled=false;
   }
  }
  const signal=phase=>doc.dispatchEvent(new CustomEvent('leeway:duplex-activity',{
   detail:{active:phase!=='idle',kind:'phase',phase,inputRms:0}}));
  const asr=createBrowserDictation({Recognition,
   onText:(text,info)=>{
+   if(turnPending)return;
    transcript.textContent=text;
-   if(info?.final&&text)void submitFinal(text);
+   if(info?.final&&text&&transport.authenticated){
+    turnPending=true;
+    asr.stop(); // Never capture the Kokoro output as a new user turn.
+    void submitFinal(text);
+   }
   },
   onState:state=>{
    const labels={
@@ -180,7 +190,7 @@ export function mountPublicDictation(doc=globalThis.document,{
     'no-speech':'No speech detected. Try again.',
    };
    status.textContent=labels[state]||('Recognition status: '+state);
-   start.disabled=asr.active;stop.disabled=!asr.active;
+   start.disabled=asr.active||turnPending;stop.disabled=!asr.active;
    signal(asr.active?'listening':'idle');
   },
  });
