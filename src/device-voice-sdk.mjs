@@ -9,11 +9,11 @@ WHEN: 2026-10-24. HOW: existing browser Kokoro and versioned voice catalog.
 AUTHORITY: local speech output only; no remote actions, inference authority, or owner credential.
 LICENSE: Existing LeeWay repository terms.
 */
-import {BUILTIN_VOICE_PACKAGES,KOKORO_VOICE_PACKAGES} from './voice-package-core.js';
+import {KOKORO_VOICE_PACKAGES} from './voice-package-core.js';
 import {synthesizeKokoroInBrowser} from './studio-kokoro-browser-synthesis.mjs';
 const VALID=/^kokoro-(?:af|am|bf|bm)_[a-z0-9]+$/;
-const voices=KOKORO_VOICE_PACKAGES.map(([id,name,gender])=>Object.freeze({
- id:'kokoro-'+id,name,gender,provider:'kokoro',offlineAfterCache:true
+const voices=KOKORO_VOICE_PACKAGES.map(({id,name,gender})=>Object.freeze({
+ id,name,gender,provider:'kokoro',offlineAfterCache:true
 }));
 const ids=new Set(voices.map(x=>x.id));
 export const LEEWAY_DEVICE_VOICE_SDK_SCHEMA='leeway.device-voice-sdk.v1';
