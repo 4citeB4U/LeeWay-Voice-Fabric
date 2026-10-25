@@ -46,22 +46,27 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
   authenticated=true;
   return {connected:true,authority:state.authority};
  }
- async function turn(transcript){
+ async function turn(transcript,{mode='machine'}={}){
+  if(!['machine','llm'].includes(mode))throw Error('LEEWAY_VOICE_MODE_INVALID');
   if(!authenticated)throw Error('LEEWAY_VOICE_SESSION_REQUIRED');
   if(typeof transcript!=='string'||!transcript.trim()||transcript.length>2500)
    throw Error('FINAL_TRANSCRIPT_INVALID');
   const result=await request(LEEWAY_VOICE_TURN,{
    method:'POST',headers:{'content-type':'application/json'},
    body:JSON.stringify({schema:'leeway.voice.turn.v1',final:true,
-    mode:'machine',text:transcript.trim(),allowDeviceActions:false}),
+    mode,text:transcript.trim(),allowDeviceActions:false}),
   });
-  if(result?.schema!=='leeway.voice.turn-result.v1'||
-    result.source!=='LEEWAY_MACHINE_CONSCIOUSNESS'||
-    result.verified!==true||result.veritasStatus!=='PASS'||
-    typeof result.text!=='string'||!result.text.trim()||result.text.length>4000)
-   throw Error('LEEWAY_VOICE_RESPONSE_NOT_VERIFIED');
+  const validText=typeof result?.text==='string'&&!!result.text.trim()&&result.text.length<=4000;
+  const validMachine=mode==='machine'&&result?.source==='LEEWAY_MACHINE_CONSCIOUSNESS'&&
+    result?.verified===true&&result?.veritasStatus==='PASS';
+  const validLlm=mode==='llm'&&result?.source==='OLLAMA_QWEN35_4B'&&
+    result?.status==='GENERATED_NOT_VERITAS_VERIFIED'&&result?.verified===false&&
+    result?.gpuInferenceVerified===false;
+  if(result?.schema!=='leeway.voice.turn-result.v1'||!validText||
+     !(validMachine||validLlm))throw Error('LEEWAY_VOICE_RESPONSE_NOT_VERIFIED');
   return {text:result.text,source:result.source,requestId:result.requestId||null,
-   receiptHash:result.receiptHash||null,verified:true};
+   receiptHash:result.receiptHash||null,verified:validMachine,
+   gpuInferenceVerified:false,mode};
  }
  return Object.freeze({configured:!!base,origin:base,connect,turn,
   get authenticated(){return authenticated},disconnect(){authenticated=false}});

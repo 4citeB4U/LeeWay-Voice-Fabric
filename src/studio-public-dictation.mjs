@@ -87,6 +87,9 @@ export function mountPublicDictation(doc=globalThis.document,{
  controls.innerHTML=[
   '<div class="leeway-duplex-controls">',
   '<button id="publicVoiceConnect" type="button">Connect authenticated Agent Lee</button>',
+  '<label for="publicVoiceModel">Response provider</label>',
+  '<select id="publicVoiceModel"><option value="machine">Verified LeeWay</option>',
+  '<option value="llm">Local Qwen 3.5 4B (unverified model output)</option></select>',
   '<button id="publicDictationStart" type="button" class="primary">Enable microphone & listen</button>',
   '<button id="publicDictationStop" type="button" disabled>Stop listening</button>',
   '</div>',
@@ -108,6 +111,7 @@ export function mountPublicDictation(doc=globalThis.document,{
  const transcript=controls.querySelector('#publicDictationText');
  const connect=controls.querySelector('#publicVoiceConnect');
  const connectionState=controls.querySelector('#publicVoiceConnection');
+ const provider=controls.querySelector('#publicVoiceModel');
  const origin=doc.querySelector('meta[name="leeway-voice-api-origin"]')?.content?.trim()||'';
  const transport=createLeeWayVoiceTransport({origin});
  connect.disabled=!transport.configured;
@@ -124,10 +128,12 @@ export function mountPublicDictation(doc=globalThis.document,{
   lastSubmitted=text;
   connectionState.textContent='Submitting final transcript to governed LeeWay voice service…';
   try{
-   const result=await transport.turn(text);
+   const result=await transport.turn(text,{mode:provider.value});
    const field=doc.getElementById('speechText');
    if(field)field.value=result.text;
-   connectionState.textContent='Verified LeeWay response displayed. Playback requires authenticated voice playout.';
+   connectionState.textContent=result.verified?
+    'Verified LeeWay response displayed. Playback requires authenticated voice playout.':
+    'Qwen model response displayed (not Veritas verified, not GPU execution). Playback is not connected.';
   }catch(error){
    connectionState.textContent='LeeWay response withheld: '+String(error.message||error);
   }

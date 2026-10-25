@@ -38,6 +38,21 @@ test('session required, HTTPS credentialed and verified machine reply only',asyn
  assert.equal(sent.allowDeviceActions,false);
  assert.equal(sent.mode,'machine');
 });
+test('explicit Qwen selection keeps provenance unverified and denies device actions',async()=>{
+ const client=createLeeWayVoiceTransport({origin:'https://voice.example.com/',fetchImpl:async(uri,options)=>({
+  ok:true,json:async()=>uri.endsWith('/session')?
+  {schema:'leeway.voice.session.v1',authenticated:true,authority:'LEEWAY_DEVICE_BRIDGE_VOICE'}:
+  {schema:'leeway.voice.turn-result.v1',source:'OLLAMA_QWEN35_4B',
+   status:'GENERATED_NOT_VERITAS_VERIFIED',verified:false,gpuInferenceVerified:false,
+   text:'Hello from local Qwen'}
+ })});
+ await client.connect();
+ const result=await client.turn('hello',{mode:'llm'});
+ assert.equal(result.source,'OLLAMA_QWEN35_4B');
+ assert.equal(result.verified,false);
+ assert.equal(result.gpuInferenceVerified,false);
+ await assert.rejects(client.turn('hello',{mode:'execute'}),/MODE_INVALID/);
+});
 test('no unverified reply can enter Studio',async()=>{
  const client=createLeeWayVoiceTransport({origin:'https://voice.example.com/',fetchImpl:async(uri)=>({
   ok:true,json:async()=>uri.endsWith('/session')?
