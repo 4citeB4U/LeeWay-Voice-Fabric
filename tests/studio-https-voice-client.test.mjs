@@ -24,7 +24,7 @@ test('session required, HTTPS credentialed and verified machine reply only',asyn
    calls.push({uri,options});
    return {ok:true,json:async()=>uri.endsWith('/session')?
     {schema:'leeway.voice.session.v1',authenticated:true,
-      authority:'LEEWAY_DEVICE_BRIDGE_VOICE'}:
+      authority:'LEEWAY_DEVICE_BRIDGE_VOICE',csrfToken:'a'.repeat(64)}:
     {schema:'leeway.voice.turn-result.v1',source:'LEEWAY_MACHINE_CONSCIOUSNESS',
       verified:true,veritasStatus:'PASS',text:'Verified Agent Lee answer'}};
   }});
@@ -41,7 +41,7 @@ test('session required, HTTPS credentialed and verified machine reply only',asyn
 test('explicit Qwen selection keeps provenance unverified and denies device actions',async()=>{
  const client=createLeeWayVoiceTransport({origin:'https://voice.example.com/',fetchImpl:async(uri,options)=>({
   ok:true,json:async()=>uri.endsWith('/session')?
-  {schema:'leeway.voice.session.v1',authenticated:true,authority:'LEEWAY_DEVICE_BRIDGE_VOICE'}:
+  {schema:'leeway.voice.session.v1',authenticated:true,authority:'LEEWAY_DEVICE_BRIDGE_VOICE',csrfToken:'a'.repeat(64)}:
   {schema:'leeway.voice.turn-result.v1',source:'OLLAMA_QWEN35_4B',
    status:'GENERATED_NOT_VERITAS_VERIFIED',verified:false,gpuInferenceVerified:false,
    text:'Hello from local Qwen'}
@@ -53,10 +53,30 @@ test('explicit Qwen selection keeps provenance unverified and denies device acti
  assert.equal(result.gpuInferenceVerified,false);
  await assert.rejects(client.turn('hello',{mode:'execute'}),/MODE_INVALID/);
 });
+test('password login obtains session CSRF without exposing it in turn body',async()=>{
+ const calls=[];
+ const client=createLeeWayVoiceTransport({origin:'https://voice.example.com/',fetchImpl:async(uri,opts)=>{
+  calls.push({uri,opts});
+  return {ok:true,json:async()=>uri.endsWith('/login')?
+   {schema:'leeway.voice.session.v1',authenticated:true,
+    authority:'LEEWAY_DEVICE_BRIDGE_VOICE',csrfToken:'b'.repeat(64)}:
+   {schema:'leeway.voice.turn-result.v1',source:'OLLAMA_QWEN35_4B',
+    status:'GENERATED_NOT_VERITAS_VERIFIED',verified:false,
+    gpuInferenceVerified:false,text:'Qwen response'}};
+ }});
+ await client.login('this-is-a-test-only-voice-passphrase');
+ const answer=await client.turn('Hello',{mode:'llm'});
+ assert.equal(answer.verified,false);
+ assert.equal(calls[1].opts.headers['x-leeway-voice-csrf'],'b'.repeat(64));
+ assert.equal(JSON.parse(calls[1].opts.body).allowDeviceActions,false);
+ assert.equal(JSON.stringify(calls[1].opts.body).includes('passphrase'),false);
+ client.disconnect();
+ await assert.rejects(client.turn('Again',{mode:'llm'}),/SESSION_REQUIRED/);
+});
 test('no unverified reply can enter Studio',async()=>{
  const client=createLeeWayVoiceTransport({origin:'https://voice.example.com/',fetchImpl:async(uri)=>({
   ok:true,json:async()=>uri.endsWith('/session')?
-  {schema:'leeway.voice.session.v1',authenticated:true,authority:'LEEWAY_DEVICE_BRIDGE_VOICE'}:
+  {schema:'leeway.voice.session.v1',authenticated:true,authority:'LEEWAY_DEVICE_BRIDGE_VOICE',csrfToken:'a'.repeat(64)}:
   {schema:'leeway.voice.turn-result.v1',source:'OLLAMA_QWEN35_4B',
    verified:true,veritasStatus:'PASS',text:'A disguised fallback'}
  })});

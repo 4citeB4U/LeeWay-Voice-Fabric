@@ -24,7 +24,7 @@ export function voiceServiceOrigin(value){
 export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.bind(globalThis)}={}){
  const base=voiceServiceOrigin(origin);
  if(!fetchImpl)throw Error('FETCH_REQUIRED');
- let authenticated=false;
+ let authenticated=false,csrfToken=null;
  async function request(route,init={}){
   if(!base)throw Error('LEEWAY_HTTPS_VOICE_SERVICE_NOT_CONFIGURED');
   const reply=await fetchImpl(base+route,{
@@ -39,12 +39,24 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
   return response;
  }
  async function connect(){
-  authenticated=false;
+  authenticated=false;csrfToken=null;
   const state=await request(LEEWAY_VOICE_SESSION,{method:'GET'});
   if(state.authenticated!==true||state.authority!=='LEEWAY_DEVICE_BRIDGE_VOICE')
    throw Error('LEEWAY_VOICE_SESSION_UNAUTHORIZED');
-  authenticated=true;
+  if(typeof state.csrfToken!=='string'||!/^[a-f0-9]{64}$/.test(state.csrfToken))
+   throw Error('LEEWAY_VOICE_CSRF_SESSION_INVALID');
+  csrfToken=state.csrfToken;authenticated=true;
   return {connected:true,authority:state.authority};
+ }
+ async function login(password){
+  if(typeof password!=='string'||password.length<16||password.length>256)
+   throw Error('LEEWAY_VOICE_LOGIN_INVALID');
+  const response=await request('/v1/voice/login',{method:'POST',
+   headers:{'content-type':'application/json'},body:JSON.stringify({password})});
+  if(response.authenticated!==true||response.authority!=='LEEWAY_DEVICE_BRIDGE_VOICE'||
+    !/^[a-f0-9]{64}$/.test(response.csrfToken||''))throw Error('LEEWAY_VOICE_LOGIN_FAILED');
+  csrfToken=response.csrfToken;authenticated=true;
+  return {connected:true,authority:response.authority};
  }
  async function turn(transcript,{mode='machine'}={}){
   if(!['machine','llm'].includes(mode))throw Error('LEEWAY_VOICE_MODE_INVALID');
@@ -52,7 +64,7 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
   if(typeof transcript!=='string'||!transcript.trim()||transcript.length>2500)
    throw Error('FINAL_TRANSCRIPT_INVALID');
   const result=await request(LEEWAY_VOICE_TURN,{
-   method:'POST',headers:{'content-type':'application/json'},
+   method:'POST',headers:{'content-type':'application/json','x-leeway-voice-csrf':csrfToken},
    body:JSON.stringify({schema:'leeway.voice.turn.v1',final:true,
     mode,text:transcript.trim(),allowDeviceActions:false}),
   });
@@ -68,6 +80,6 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
    receiptHash:result.receiptHash||null,verified:validMachine,
    gpuInferenceVerified:false,mode};
  }
- return Object.freeze({configured:!!base,origin:base,connect,turn,
-  get authenticated(){return authenticated},disconnect(){authenticated=false}});
+ return Object.freeze({configured:!!base,origin:base,connect,login,turn,
+  get authenticated(){return authenticated},disconnect(){authenticated=false;csrfToken=null}});
 }

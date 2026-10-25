@@ -86,6 +86,8 @@ export function mountPublicDictation(doc=globalThis.document,{
  controls.className='leeway-public-dictation';
  controls.innerHTML=[
   '<div class="leeway-duplex-controls">',
+  '<label for="publicVoicePassword">LeeWay voice passphrase</label>',
+  '<input id="publicVoicePassword" type="password" autocomplete="current-password" minlength="16" placeholder="Enter owner voice login" />',
   '<button id="publicVoiceConnect" type="button">Connect authenticated Agent Lee</button>',
   '<label for="publicVoiceModel">Response provider</label>',
   '<select id="publicVoiceModel"><option value="machine">Verified LeeWay</option>',
@@ -110,17 +112,29 @@ export function mountPublicDictation(doc=globalThis.document,{
  const status=controls.querySelector('#publicDictationStatus');
  const transcript=controls.querySelector('#publicDictationText');
  const connect=controls.querySelector('#publicVoiceConnect');
+ const password=controls.querySelector('#publicVoicePassword');
  const connectionState=controls.querySelector('#publicVoiceConnection');
  const provider=controls.querySelector('#publicVoiceModel');
  const origin=doc.querySelector('meta[name="leeway-voice-api-origin"]')?.content?.trim()||'';
  const transport=createLeeWayVoiceTransport({origin});
  connect.disabled=!transport.configured;
+ password.disabled=!transport.configured;
  if(transport.configured)connectionState.textContent='Secure LeeWay voice service configured. Sign in to connect.';
  connect.addEventListener('click',async()=>{
   connect.disabled=true;
   connectionState.textContent='Checking authenticated LeeWay voice session…';
-  try{await transport.connect();connectionState.textContent='Authenticated LeeWay voice session connected.';}
-  catch(error){connectionState.textContent='LeeWay voice connection unavailable: '+String(error.message||error);connect.disabled=false;}
+  try{
+   try{await transport.connect()}
+   catch(error){
+    if(!password.value)throw Error('LOGIN_REQUIRED_ENTER_VOICE_PASSPHRASE');
+    await transport.login(password.value);
+   }
+   password.value='';
+   connectionState.textContent='Authenticated LeeWay voice session connected.';
+  }catch(error){
+   connectionState.textContent='LeeWay voice connection unavailable: '+String(error.message||error);
+   connect.disabled=false;
+  }
  });
  let lastSubmitted='';
  async function submitFinal(text){
