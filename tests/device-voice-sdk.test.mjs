@@ -82,4 +82,5 @@ test('authenticated mobile reader converges canonical revision through HTTPS',as
  device.applyCanonical(updated);
  assert.equal(device.getSettings().canonicalRevision,revision);
  assert.equal(device.getSettings().voiceId,voice);
+ device.disconnectCanonical();
 });
