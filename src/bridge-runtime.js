@@ -9,11 +9,14 @@ const token=new URLSearchParams(location.hash.slice(1)).get('token')||'';
 const engines={
   kokoro:new globalThis.LeeWayKokoroVoice(),
   'device-speech':new globalThis.LeeWayDeviceSpeechVoice(),
-  chatterbox:new globalThis.LeeWayBrowserVoice()
+  // The selected Chatterbox package supplies its own reference after model load.
+  // Do not spend time encoding the unrelated provider-default reference first.
+  chatterbox:new globalThis.LeeWayBrowserVoice({skipDefaultReference:true,model:'turbo'})
 };
 let voice=engines.kokoro,activeProvider='kokoro';
 let activeStream=null,activeStreamId=null,selectedVoiceId=DEFAULT_KOKORO_VOICE_ID;
 let profile=null,lastPlan=null,lastAttempts=[],lastError=null,lastFallback=null,preparing=null;
+let preparedReferenceId=null;
 const clearStream=()=>{activeStream?.fail(new DOMException('Speech was stopped.','AbortError'));activeStream=null;activeStreamId=null;};
 const reply=(source,origin,id,ok,data,error)=>source.postMessage({token,replyTo:id,ok,data,error},origin);
 const event=(source,origin,type,data)=>source.postMessage({token,type,data},origin);
@@ -31,7 +34,10 @@ async function applyVoicePackage(id){
   if(!provider)throw new Error(`Voice "${pkg.name}" uses provider "${pkg.provider}", which this bridge cannot run.`);
   useEngine(provider);
   if(provider==='kokoro')voice.setVoice(pkg.voiceId);
-  if(provider==='chatterbox'&&voice.ready){const blob=await voiceRegistry.audio(pkg.id);if(!blob)throw new Error('Voice reference unavailable.');await voice.setReference(blob);}
+  if(provider==='chatterbox'&&voice.ready&&preparedReferenceId!==pkg.id){
+    const blob=await voiceRegistry.audio(pkg.id);if(!blob)throw new Error('Voice reference unavailable.');
+    await voice.setReference(blob);preparedReferenceId=pkg.id;
+  }
   voice.exaggeration=Number(pkg.exaggeration);voice.setPace(pkg.pace);selectedVoiceId=pkg.id;return pkg;
 }
 const fallbackVoiceFor=(provider,pkg)=>provider==='kokoro'?DEFAULT_KOKORO_VOICE_ID:provider==='device-speech'?DEVICE_VOICE_ID:pkg.id;
@@ -57,7 +63,10 @@ async function prepareVoice({onState=()=>{},requestedProvider,exclude=[]}={}){
       useEngine(step.provider);
       if(step.provider==='kokoro')voice.requestedDevice=step.device==='wasm'?'wasm':null;
       await voice.load(onState);
-      if(step.provider==='chatterbox'){const blob=await voiceRegistry.audio(pkg.id);if(!blob)throw new Error('Voice reference unavailable.');await voice.setReference(blob);}
+      if(step.provider==='chatterbox'){
+        const blob=await voiceRegistry.audio(pkg.id);if(!blob)throw new Error('Voice reference unavailable.');
+        await voice.setReference(blob);preparedReferenceId=pkg.id;
+      }
     });
     lastAttempts=outcome.attempts;
     if(!outcome.ok){const error=new Error(`${outcome.error} ${outcome.attempts.map(a=>`${a.provider}: ${a.error}`).join('; ')}`.trim());remember(error);throw error;}
@@ -122,7 +131,8 @@ async function selfTest(source,origin,{audible=false,bridgeUrl,bearerToken}={}){
     try{
       const out=await voice.request('generate',{text:'Voice check.',exaggeration:voice.exaggeration});
       const m=peakAndRms(out.audio);
-      step('synthesis',m.samples>0&&m.peak>0.01&&Number.isFinite(m.rms),{...m,sampleRate:out.sampleRate,seconds:m.samples/out.sampleRate});
+      step('waveform-non-silent',m.samples>0&&m.peak>0.01&&Number.isFinite(m.rms),{...m,sampleRate:out.sampleRate,seconds:m.samples/out.sampleRate,
+        speechContent:'NOT_MEASURED',note:'This check detects non-silent samples only; it does not qualify intelligibility or voice quality.'});
     }catch(error){step('synthesis',false,{error:error.message});}
   }else if(prepared){
     const voices=globalThis.speechSynthesis?.getVoices?.()||[];
@@ -177,6 +187,7 @@ addEventListener('message',async e=>{
       case 'setReference':{
         const bytes=m.data?.audio;if(!(bytes instanceof ArrayBuffer))throw new Error('Reference audio ArrayBuffer required.');
         useEngine('chatterbox');
+        preparedReferenceId=null;
         await voice.setReference(new Blob([bytes],{type:m.data.type||'audio/wav'}));
         reply(e.source,e.origin,m.id,true,{name:m.data.name||'custom-reference'});break;
       }
@@ -205,7 +216,7 @@ addEventListener('message',async e=>{
       case 'metrics':
         reply(e.source,e.origin,m.id,true,{events:globalThis.LeeWayVoiceMetrics?.snapshot?.()||[],selectedVoiceId,provider:activeProvider,lastError});break;
       case 'dispose':
-        for(const engine of Object.values(engines))await engine.dispose();activeStream=null;activeStreamId=null;reply(e.source,e.origin,m.id,true,{disposed:true});break;
+        for(const engine of Object.values(engines))await engine.dispose();activeStream=null;activeStreamId=null;preparedReferenceId=null;reply(e.source,e.origin,m.id,true,{disposed:true});break;
       default: throw new Error('Unknown Voice Fabric command.');
     }
   }catch(error){if(!isAbort(error))remember(error);reply(e.source,e.origin,m.id,false,null,error.message||String(error));}

@@ -31,6 +31,15 @@ function cancelNativePending(){
 const stopping=new InterruptableStoppingCriteria();
 const reply=(id,type,data={})=>self.postMessage({id,type,data});
 const progress=(id,data)=>reply(id,'progress',data);
+function generationParameters(data,stoppingCriteria,streamer){
+  const exaggeration=Number.isFinite(data.exaggeration)?Math.max(0,Math.min(1,data.exaggeration)):.25;
+  const temperature=Number.isFinite(data.temperature)?Math.max(.5,Math.min(1,data.temperature)):.8;
+  const defaultTopK=turbo?1000:50,maxTopK=turbo?1000:100;
+  const top_k=Number.isFinite(data.top_k)?Math.round(Math.max(10,Math.min(maxTopK,data.top_k))):defaultTopK;
+  return {exaggeration,do_sample:true,temperature,top_k,
+    ...(turbo?{repetition_penalty:1.2,max_new_tokens:1024}:{max_new_tokens:384}),
+    stopping_criteria:[stoppingCriteria],streamer};
+}
 self.addEventListener('unhandledrejection',event=>{
   if(activeRequestId!==null){
     event.preventDefault();
@@ -43,7 +52,14 @@ async function load(id,requested,useNativeDecoder=false){
   let adapter=null;
   if(requested!=='wasm'&&self.navigator.gpu)try{adapter=await navigator.gpu.requestAdapter({powerPreference:'high-performance'})}catch{}
   device=requested==='wasm'||!adapter?'wasm':'webgpu';
-  const dtype={embed_tokens:'fp32',speech_encoder:'fp32',conditional_decoder:'fp32',language_model:device==='webgpu'&&adapter?.features.has('shader-f16')?'q4f16':'q4'};
+  const hasF16=device==='webgpu'&&adapter?.features.has('shader-f16');
+  const turboDtype=hasF16?'q4f16':'q4';
+  // Keep the speaker encoder and waveform decoder at native precision. Applying
+  // 4-bit quantization to both signal-path stages can turn a valid waveform into
+  // buzzy, unintelligible output. Quantize only the large token generator.
+  const dtype=turbo
+    ?{embed_tokens:hasF16?'fp16':'fp32',speech_encoder:hasF16?'fp16':'fp32',conditional_decoder:hasF16?'fp16':'fp32',language_model:turboDtype}
+    :{embed_tokens:'fp32',speech_encoder:'fp32',conditional_decoder:'fp32',language_model:turboDtype};
   if(requested==='wasm'&&!turbo){
     const ort=await import('https://cdn.jsdelivr.net/npm/onnxruntime-web@1.31.0-dev.20260914-8d85527a0/webgpu/+esm');
     ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;
@@ -130,12 +146,9 @@ async function run(message){
       if(turn!==epoch)throw new Error('Speech request was interrupted.');
       const started=performance.now();let decodedAt=null,steps=0;
       const streamer={put(){if(++steps%16===0)progress(id,{message:`Generating speech: ${steps} audio tokens...`})},end(){decodedAt=performance.now();progress(id,{message:'Rendering the speech waveform...'})}};
-      const exaggeration=Number.isFinite(data.exaggeration)?Math.max(0,Math.min(1,data.exaggeration)):.25;
-      const temperature=Number.isFinite(data.temperature)?Math.max(.5,Math.min(1,data.temperature)):.8;
-      const top_k=Number.isFinite(data.top_k)?Math.round(Math.max(10,Math.min(100,data.top_k))):50;
-      // Greedy decoding dropped whole phrases in the Voice One content check.
-      // Transformers.js 4.3.0 has no top-p logits processor. Do not expose it as effective.
-      waveform=await model.generate({...inputs,...speaker,exaggeration,do_sample:true,temperature,top_k,max_new_tokens:384,stopping_criteria:[stopping],streamer});
+      // Match the published Turbo sampling profile: temperature .8, top-k 1000,
+      // repetition penalty 1.2. Turbo output needs its own generation contract.
+      waveform=await model.generate({...inputs,...speaker,...generationParameters(data,stopping,streamer)});
       if(turn!==epoch)throw new Error('Speech request was interrupted.');
       const samples=waveform.data,buffer=samples.buffer.slice(samples.byteOffset,samples.byteOffset+samples.byteLength);
       const metrics=waveformStats(samples);

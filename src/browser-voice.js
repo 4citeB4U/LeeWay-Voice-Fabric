@@ -4,7 +4,7 @@
   const REVISION='3cab09af388d3f02bba43443fce88c1f4525ac43';
   const sourceURL=typeof document!=='undefined'?document.currentScript?.src:null;
   const DEFAULT_REFERENCE='https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav';
-  const FABRIC_BUILD='20261002-native-encoder1';
+  const FABRIC_BUILD='20261024-chatterbox-turbo-quality1';
   const WORKER_URL=sourceURL?new URL('chatterbox.worker.js?v='+FABRIC_BUILD,sourceURL).href:'/src/chatterbox.worker.js?v='+FABRIC_BUILD;
   const CACHE_MODULE_URL=sourceURL?new URL('voice-model-cache.js?v='+FABRIC_BUILD,sourceURL).href:'/src/voice-model-cache.js?v='+FABRIC_BUILD;
   const NATIVE_MODULE_URL=sourceURL?new URL('native-decoder-client.js?v='+FABRIC_BUILD,sourceURL).href:'/src/native-decoder-client.js?v='+FABRIC_BUILD;
@@ -41,14 +41,17 @@
       this.options=options;this.ready=false;this.loading=null;this.epoch=0;this.id=0;
       this.pending=new Map();this.sources=new Set();this.finishPlayback=new Set();this.device=null;this.lifecycle=0;
       this.exaggeration=.25;
-      this.playbackRate=1.22;
+      this.playbackRate=1;
     }
     static get download(){return {model:'onnx-community/chatterbox-ONNX',revision:REVISION,webgpuBytes:1499401538,wasmBytes:1548283901,referenceBytes:720078};}
     static chunks(text){return chunks(text);}
     static segmentCut(text,options){return segmentCut(text,options);}
     createWorker(){
       if(this.worker)return;
-      const worker=this.worker=new Worker(this.options.workerURL||WORKER_URL,{type:'module'});
+      const workerURL=new URL(this.options.workerURL||WORKER_URL,root.location?.href||'https://voice-fabric.invalid/');
+      if(this.options.model==='turbo')workerURL.searchParams.set('model','turbo');
+      else workerURL.searchParams.delete('model');
+      const worker=this.worker=new Worker(workerURL.href,{type:'module'});
       worker.onmessage=({data:message})=>{
         if(this.worker!==worker)return;
         if(message.type==='native-decoder'){
@@ -130,7 +133,9 @@
           if(lifecycle!==this.lifecycle)throw aborted();
         };
         if(initialDevice==='wasm')await prepareCpuPath();
-        onProgress({status:'initiate',file:'Chatterbox voice',total:LeeWayBrowserVoice.download.webgpuBytes});
+        const turbo=this.options.model==='turbo';
+        onProgress({status:'initiate',file:turbo?'Chatterbox Turbo · Agent Lee Voice One':'Chatterbox voice',
+          ...(turbo?{message:'Preparing the higher-fidelity Chatterbox Turbo profile; first-download size depends on device precision and cache.'}:{total:LeeWayBrowserVoice.download.webgpuBytes})});
         let result;
         try{result=await this.request('load',{device:initialDevice,nativeDecoder:!!this.nativeDecoder},onProgress);}
         catch(error){
@@ -215,7 +220,7 @@
         media.play().catch(error=>{onState(`Browser audio playback rejected (${error?.name||'Error'}): ${error?.message||'unknown error'}.`);finish(error);});
       });
     }
-    setPace(value){this.playbackRate=Math.max(.6,Math.min(1.6,Number(value)||1.22));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
+    setPace(value){this.playbackRate=Math.max(.6,Math.min(1.6,Number(value)||1));for(const source of this.sources)if(source.media)source.media.playbackRate=this.playbackRate;}
     stop(){
       ++this.epoch;this.worker?.postMessage({type:'stop',epoch:this.epoch});
       this.nativeDecoder?.cancel(true);

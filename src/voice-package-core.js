@@ -57,7 +57,7 @@ export const BUILTIN_VOICE_PACKAGES=[{
   packageType:'CLONED_REFERENCE',
   referenceUrl:'https://raw.githubusercontent.com/4citeB4U/RapidWebDev/main/brain/public/voices/agent-lee-reference.wav',
   referenceSha256:'638c88b332ecc7a21950511871c724f68f3eb566c59157e46493ee79ec55970e',
-  pace:1.22,
+  pace:1.0,
   exaggeration:.25,
   source:'BUILTIN_VERSIONED',
   status:'AVAILABLE'
