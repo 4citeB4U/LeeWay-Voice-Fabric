@@ -212,16 +212,12 @@ globalThis.LeeWayStudioControls={
  speakConversation:async(text,synthesizeRemote)=>{
   if(typeof text!=='string'||!text.trim()||text.length>1200)throw Error('CONVERSATION_SPEECH_TEXT_INVALID');
   if(!selected||busy)throw Error('STUDIO_VOICE_NOT_READY');
-  if(selected.provider==='chatterbox'){
-   if(!voice.ready)throw Error('CLONED_VOICE_MODEL_NOT_PREPARED');
-   if(!referenceBlob)throw Error('CLONED_VOICE_REFERENCE_NOT_LOADED');
-   $('speechText').value=text;
-   await streamAudition();
-   return {spoken:true,voiceId:selected.id,provider:'chatterbox'};
-  }
-  if(selected.provider!=='kokoro'||typeof synthesizeRemote!=='function')throw Error('SUPPORTED_KOKORO_OR_CLONED_VOICE_REQUIRED');
+  if(selected.provider!=='kokoro'||typeof synthesizeRemote!=='function')throw Error('LEEWAY_VOICE_FABRIC_KOKORO_REQUIRED');
   const voiceId='kokoro-'+selected.voiceId;
   const reply=await synthesizeRemote(text,voiceId);
+  if(reply.authority!=='LEEWAY_VOICE_FABRIC'||reply.agentId!=='agent-lee'||
+   reply.voicePackageId!==voiceId||reply.format!=='wav'||reply.playbackVerified!==false)
+   throw Error('LEEWAY_VOICE_FABRIC_IDENTITY_MISMATCH');
   const bytes=Uint8Array.from(atob(reply.audioContent),c=>c.charCodeAt(0));
   if(bytes.length<44||bytes.length>18000000)throw Error('KOKORO_AUDIO_INVALID');
   const player=$('outputPlayer');player.pause();if(outputURL)URL.revokeObjectURL(outputURL);

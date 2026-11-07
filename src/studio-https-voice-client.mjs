@@ -13,6 +13,32 @@ LICENSE: existing repository terms.
 */
 export const LEEWAY_VOICE_SESSION='/v1/voice/session';
 export const LEEWAY_VOICE_TURN='/v1/voice/turn';
+export const LEEWAY_VOICE_INTERRUPT='/v1/voice/interrupt';
+const ID=/^[A-Za-z0-9][A-Za-z0-9._:-]{0,159}$/;
+const SHA=/^[a-f0-9]{64}$/i;
+const captureTime=value=>typeof value==='string'&&Number.isFinite(Date.parse(value));
+function validateTurnEvidence(value){
+ if(!value||typeof value!=='object'||Array.isArray(value)||
+  value.source!=='LEEWAY_EDGE_RTC'||value.transcriptSource!=='LEEWAY_EDGE_GPU_ASR'||
+  value.inferenceRoute!=='LEEWAY_EDGE_GPU'||value.inferenceAuthority!=='LEEWAY_EDGE_GPU_ONLY'||
+  value.storageAuthority!=='LEEWAY_CONTINUUM_ONLY'||!ID.test(value.ownerDeviceId||'')||
+  !ID.test(value.segmentId||'')||!ID.test(value.audioRecordId||'')||!SHA.test(value.audioSha256||'')||
+  typeof value.text!=='string'||!value.text.trim()||value.text.length>2500||
+  !captureTime(value.captureStartedAt)||!captureTime(value.captureEndedAt)||
+  Date.parse(value.captureEndedAt)<Date.parse(value.captureStartedAt))
+  throw Error('LEEWAY_GPU_ASR_CAPTURE_EVIDENCE_REQUIRED');
+ return Object.freeze({schema:'leeway.voice.turn.v1',final:true,allowDeviceActions:false,
+  source:value.source,transcriptSource:value.transcriptSource,inferenceRoute:value.inferenceRoute,
+  inferenceAuthority:value.inferenceAuthority,storageAuthority:value.storageAuthority,
+  ownerDeviceId:value.ownerDeviceId,segmentId:value.segmentId,requestId:ID.test(value.requestId||'')?value.requestId:undefined,
+  text:value.text.trim(),audioRecordId:value.audioRecordId,audioSha256:value.audioSha256.toLowerCase(),
+  captureStartedAt:value.captureStartedAt,captureEndedAt:value.captureEndedAt,
+  ...(typeof value.startedAt==='string'?{startedAt:value.startedAt}:{}),
+  ...(value.playbackTelemetry&&typeof value.playbackTelemetry==='object'?{playbackTelemetry:value.playbackTelemetry}:{}),
+  ...(value.interruptionTelemetry&&typeof value.interruptionTelemetry==='object'?{interruptionTelemetry:value.interruptionTelemetry}:{}),
+  ...(value.latencyTelemetry&&typeof value.latencyTelemetry==='object'?{latencyTelemetry:value.latencyTelemetry}:{}),
+  ...(value.deliveryTelemetry&&typeof value.deliveryTelemetry==='object'?{deliveryTelemetry:value.deliveryTelemetry}:{})});
+}
 export function voiceServiceOrigin(value){
  if(!value)return null;
  let u;try{u=new URL(value)}catch{return null}
@@ -25,11 +51,11 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
  const base=voiceServiceOrigin(origin);
  if(!fetchImpl)throw Error('FETCH_REQUIRED');
  let authenticated=false,csrfToken=null;
- async function request(route,init={}){
+ async function request(route,init={},timeoutMs=18000){
   if(!base)throw Error('LEEWAY_HTTPS_VOICE_SERVICE_NOT_CONFIGURED');
   const reply=await fetchImpl(base+route,{
    ...init,credentials:'include',mode:'cors',redirect:'error',
-   cache:'no-store',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(18000),
+   cache:'no-store',referrerPolicy:'no-referrer',signal:AbortSignal.timeout(timeoutMs),
    headers:{accept:'application/json',...(init.headers||{})},
   });
   if(!reply.ok)throw Error('LEEWAY_VOICE_HTTP_'+reply.status);
@@ -86,34 +112,54 @@ export function createLeeWayVoiceTransport({origin,fetchImpl=globalThis.fetch?.b
   csrfToken=result.csrfToken;authenticated=true;
   return {approved:true,appId:result.appId};
  }
- async function turn(transcript,{mode='machine'}={}){
-  if(!['machine','llm'].includes(mode))throw Error('LEEWAY_VOICE_MODE_INVALID');
+ async function turn(evidence){
   if(!authenticated)throw Error('LEEWAY_VOICE_SESSION_REQUIRED');
-  if(typeof transcript!=='string'||!transcript.trim()||transcript.length>2500)
-   throw Error('FINAL_TRANSCRIPT_INVALID');
+  const body=validateTurnEvidence(evidence);
   const result=await request(LEEWAY_VOICE_TURN,{
    method:'POST',headers:{'content-type':'application/json','x-leeway-voice-csrf':csrfToken},
-   body:JSON.stringify({schema:'leeway.voice.turn.v1',final:true,
-    mode,text:transcript.trim(),allowDeviceActions:false}),
-  });
+   body:JSON.stringify(body),
+  },90000);
   const validText=typeof result?.text==='string'&&!!result.text.trim()&&result.text.length<=4000;
-  const validMachine=mode==='machine'&&result?.source==='LEEWAY_MACHINE_CONSCIOUSNESS'&&
-    result?.verified===true&&result?.veritasStatus==='PASS';
-  const validLlm=mode==='llm'&&result?.source==='OLLAMA_QWEN35_4B'&&
-    result?.status==='GENERATED_NOT_VERITAS_VERIFIED'&&result?.verified===false&&
-    result?.gpuInferenceVerified===false;
-  if(result?.schema!=='leeway.voice.turn-result.v1'||!validText||
-     !(validMachine||validLlm))throw Error('LEEWAY_VOICE_RESPONSE_NOT_VERIFIED');
+  const voice=result?.voice;
+  const validMachine=result?.source==='LEEWAY_MACHINE_CONSCIOUSNESS'&&result?.identity==='Agent Lee'&&
+    result?.verified===true&&result?.veritasStatus==='NOT_ASSERTED'&&result?.status==='VERIFIED'&&
+    result?.evidence==='AUTHENTICATED_AGENT_LEE_TURN_VOICE_FABRIC_AND_CONTINUUM_READBACK'&&
+    ID.test(result?.continuumRecordId||'')&&voice?.authority==='LEEWAY_VOICE_FABRIC'&&
+    voice?.agentId==='agent-lee'&&/^kokoro-(?:af|am|bf|bm)_[a-z0-9]+$/.test(voice?.voicePackageId||'')&&
+    voice?.format==='wav'&&Number.isFinite(voice?.sampleRate)&&voice.sampleRate>0&&
+    typeof voice?.audioContent==='string'&&voice.audioContent.length<=23000000&&
+    /^[A-Za-z0-9+/]+={0,2}$/.test(voice.audioContent)&&voice.playbackVerified===false;
+  if(result?.schema!=='leeway.voice.turn-result.v1'||!validText||!validMachine)
+   throw Error('LEEWAY_VOICE_RESPONSE_NOT_VERIFIED');
   return {text:result.text,source:result.source,requestId:result.requestId||null,
-   receiptHash:result.receiptHash||null,verified:validMachine,
-   gpuInferenceVerified:false,mode};
+   continuumRecordId:result.continuumRecordId,voice,gatewayEvidenceValidated:true,
+   veritasStatus:result.veritasStatus,playbackVerified:false};
+ }
+ async function interrupt(evidence){
+  if(!authenticated)throw Error('LEEWAY_VOICE_SESSION_REQUIRED');
+  if(!evidence||typeof evidence!=='object'||evidence.source!=='LEEWAY_EDGE_RTC'||
+   evidence.transcriptSource!=='LEEWAY_EDGE_GPU_ASR'||evidence.inferenceRoute!=='LEEWAY_EDGE_GPU'||
+   evidence.inferenceAuthority!=='LEEWAY_EDGE_GPU_ONLY'||evidence.storageAuthority!=='LEEWAY_CONTINUUM_ONLY'||
+   !ID.test(evidence.ownerDeviceId||'')||!ID.test(evidence.segmentId||''))
+   throw Error('LEEWAY_GPU_ASR_INTERRUPT_EVIDENCE_REQUIRED');
+  const result=await request(LEEWAY_VOICE_INTERRUPT,{
+   method:'POST',headers:{'content-type':'application/json','x-leeway-voice-csrf':csrfToken},
+   body:JSON.stringify({schema:'leeway.voice.interrupt.v1',...evidence}),
+  },15000);
+  if(result?.schema!=='leeway.voice.interrupt-result.v1'||
+   result?.authority!=='LEEWAY_MACHINE_CONSCIOUSNESS'||!Number.isInteger(result?.interruptionEpoch)||
+   result?.staleOutputGuard!=='EPOCH_ADVANCED')throw Error('LEEWAY_VOICE_INTERRUPT_NOT_VERIFIED');
+  return result;
  }
  async function synthesize(text,voicePackageId){
   if(!authenticated)throw Error('VOICE_SESSION_REQUIRED');
-  const output=await request('/v1/voice/synthesize',{method:'POST',headers:{'content-type':'application/json','x-leeway-voice-csrf':csrfToken},body:JSON.stringify({schema:'leeway.voice.synthesize.v1',text,voicePackageId})});
-  if(output.schema!=='leeway.voice.synthesis-result.v1')throw Error('VOICE_SYNTHESIS_RESPONSE_INVALID');
+  const output=await request('/v1/voice/synthesize',{method:'POST',headers:{'content-type':'application/json','x-leeway-voice-csrf':csrfToken},body:JSON.stringify({schema:'leeway.voice.synthesize.v1',agentId:'agent-lee',text,voicePackageId})},90000);
+  if(output.schema!=='leeway.voice.synthesis-result.v1'||output.authority!=='LEEWAY_VOICE_FABRIC'||
+   output.agentId!=='agent-lee'||output.voicePackageId!==voicePackageId||output.format!=='wav'||
+   typeof output.audioContent!=='string'||!Number.isFinite(output.sampleRate)||output.playbackVerified!==false)
+   throw Error('VOICE_SYNTHESIS_RESPONSE_INVALID');
   return output;
  }
- return Object.freeze({configured:!!base,origin:base,connect,login,beginPairing,claimPairing,turn,synthesize,
+ return Object.freeze({configured:!!base,origin:base,connect,login,beginPairing,claimPairing,turn,interrupt,synthesize,
   get authenticated(){return authenticated},disconnect(){authenticated=false;csrfToken=null}});
 }

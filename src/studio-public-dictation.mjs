@@ -1,13 +1,12 @@
 /*
 LEEWAY HEADER — DO NOT REMOVE
-REGION: VOICE.FABRIC.PUBLIC.DICTATION
-TAG: HTTPS_BROWSER_ASR_WITHOUT_LOCALHOST_IFRAME
-WHO: LeeWay Industries; WHAT: capture speech into You said on public HTTPS Studio
-WHY: GitHub Pages cannot supply a loopback Agent Lee conversation backend
-WHERE: public Voice Fabric Studio; WHEN: 2026-10-24
-HOW: explicit browser SpeechRecognition, no TTS, no device commands
-AUTHORITY: microphone starts only after user click. The browser might send
-speech to its recognition provider. This is NOT offline LeeWay ASR.
+REGION: VOICE.FABRIC.PUBLIC.CONVERSATION
+TAG: GPU_ASR_EVIDENCE_REQUIRED_NO_BROWSER_FALLBACK
+WHO: LeeWay Industries; WHAT: keep public Studio voice turns on the canonical GPU ASR route
+WHY: browser SpeechRecognition may route transcripts outside LeeWay and cannot prove GPU provenance
+WHERE: public Voice Fabric Studio; WHEN: 2026-11-07
+HOW: microphone capture is not opened unless a bound LeeWay GPU ASR adapter exists
+AUTHORITY: Device Bridge session and hash-bound capture evidence are required before a turn.
 LICENSE: existing repository terms.
 */
 import {createLeeWayVoiceTransport} from './studio-https-voice-client.mjs';
@@ -70,7 +69,8 @@ export function createBrowserDictation({
 }
 export function mountPublicDictation(doc=globalThis.document,{
  hostname=globalThis.location?.hostname||'',
- Recognition=globalThis.SpeechRecognition||globalThis.webkitSpeechRecognition,
+ Recognition=null,
+ gpuAsrEvidenceProvider=null,
 }={}){
  if(hostname.toLowerCase()!=='4citeb4u.github.io'||!doc)return null;
  const container=doc.getElementById('duplexInline');
@@ -88,31 +88,26 @@ export function mountPublicDictation(doc=globalThis.document,{
  controls.innerHTML=[
   '<div class="leeway-duplex-controls">',
   '<button id="publicVoiceConnect" type="button">Request connection on Agent-Lee computer</button>',
-  '<label for="publicVoiceModel">Response provider</label>',
-  '<select id="publicVoiceModel"><option value="machine">Verified LeeWay</option>',
-  '<option value="llm">Local Qwen 3.5 4B (unverified model output)</option></select>',
   '<button id="publicDictationStart" type="button" class="primary">Enable microphone & listen</button>',
   '<button id="publicDictationStop" type="button" disabled>Stop listening</button>',
   '</div>',
   '<p id="publicVoiceConnection" role="status" aria-live="polite">No authenticated LeeWay voice service configured.</p>',
-  '<p id="publicDictationStatus" role="status" aria-live="polite">Microphone off. Dictation uses this browser\'s speech recognition service.</p>',
+  '<p id="publicDictationStatus" role="status" aria-live="polite">Microphone off. Browser speech recognition is disabled; production turns require LeeWay GPU ASR.</p>',
   '<section class="panel" aria-label="Recognized speech"><h3>You said</h3>',
   '<div id="publicDictationText" aria-live="polite"></div></section>',
-  '<p class="hint">Browser dictation only. GitHub Pages cannot run the local Agent Lee/Qwen response engine.',
-  'Browser speech recognition may use an online provider. For full Agent Lee conversation,',
-  'open the standalone application on the computer running LeeWay Edge RTC.</p>',
+  '<p class="hint">Production conversation sends no transcript until a LeeWay GPU ASR adapter supplies hash-bound capture evidence.',
+  'Browser speech recognition and unverified model fallbacks are not used for Agent Lee turns.</p>',
  ].join('');
  container.append(controls);
  const heading=container.querySelector('h3');
  if(heading)heading.textContent='Browser voice dictation';
- if(oldStatus)oldStatus.textContent='Public Studio: microphone dictation available; Agent Lee conversation backend not connected.';
+ if(oldStatus)oldStatus.textContent='Public Studio: production conversation requires LeeWay GPU ASR evidence and an authenticated Device Bridge session.';
  const start=controls.querySelector('#publicDictationStart');
  const stop=controls.querySelector('#publicDictationStop');
  const status=controls.querySelector('#publicDictationStatus');
  const transcript=controls.querySelector('#publicDictationText');
  const connect=controls.querySelector('#publicVoiceConnect');
  const connectionState=controls.querySelector('#publicVoiceConnection');
- const provider=controls.querySelector('#publicVoiceModel');
  const origin=doc.querySelector('meta[name="leeway-voice-api-origin"]')?.content?.trim()||'';
  const transport=createLeeWayVoiceTransport({origin});
  connect.disabled=!transport.configured;
@@ -157,17 +152,17 @@ export function mountPublicDictation(doc=globalThis.document,{
   lastSubmitted=text;
   connectionState.textContent='Submitting final transcript to governed LeeWay voice service…';
   try{
-   const result=await transport.turn(text,{mode:provider.value});
+   if(typeof gpuAsrEvidenceProvider!=='function')throw Error('LEEWAY_GPU_ASR_ADAPTER_UNBOUND');
+   const provenance=await gpuAsrEvidenceProvider({text,microphoneStream:sharedStream});
+   const result=await transport.turn({...provenance,text});
    lastResponse=result.text;
    const field=doc.getElementById('speechText');
    if(field)field.value=result.text;
    const controller=globalThis.LeeWayStudioControls;
    if(typeof controller?.speakConversation!=='function')throw Error('STUDIO_AUDIO_CONTROLLER_UNAVAILABLE');
    connectionState.textContent='Authenticated answer received. Synthesizing with selected Studio voice...';
-   await controller.speakConversation(result.text,transport.synthesize);
-   connectionState.textContent=result.verified?
-    'Verified LeeWay response played through the selected Studio voice.':
-    'Qwen answer played through Studio voice (model output not Veritas or GPU verified).';
+   await controller.speakConversation(result.text,async()=>result.voice);
+   connectionState.textContent='Authenticated Agent Lee response played through the LeeWay Voice Fabric selection. Playback completed in software; physical audibility and independent Veritas are not asserted.';
   }catch(error){
    lastSubmitted='';
    connectionState.textContent='Conversation or audio playback failed: '+String(error.message||error);
@@ -193,7 +188,7 @@ export function mountPublicDictation(doc=globalThis.document,{
     'requesting-microphone':'Waiting for microphone permission…',
     stopped:'Listening stopped.',
     ended:'Recognition ended. Select Enable microphone to try again.',
-    unsupported:'Speech recognition is unavailable in this browser. Use compatible Chrome/Edge or LeeWay local ASR.',
+    unsupported:'LeeWay GPU ASR adapter is not bound. No browser speech-recognition fallback will be used.',
     'not-allowed':'Microphone permission denied. Enable it in the browser site settings.',
     'service-not-allowed':'The browser recognition service denied this request.',
     'audio-capture':'No usable microphone detected.',
@@ -207,6 +202,7 @@ export function mountPublicDictation(doc=globalThis.document,{
  });
  start.addEventListener('click',async()=>{
   start.disabled=true;
+  if(!asr.supported){status.textContent='LeeWay GPU ASR adapter is not bound. Microphone capture was not opened.';start.disabled=false;return;}
   try{
    sharedStream ||= await globalThis.navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
    const track=sharedStream.getAudioTracks()[0];

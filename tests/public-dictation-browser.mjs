@@ -63,5 +63,20 @@ try{
  await page.locator('#publicDictationStop').click();
  assert.equal(await page.locator('#publicDictationStart').isEnabled(),true);
  assert.equal(await page.locator('#duplexInlineFrame').isVisible(),false);
- console.log('PUBLIC_STUDIO_DICTATION_TRANSCRIPT_AND_STOP_PASS');
+ const blocked=await browser.newPage({viewport:{width:1450,height:920}});
+ await blocked.goto('http://127.0.0.1:'+server.address().port+'/index.html',{waitUntil:'domcontentloaded'});
+ await blocked.evaluate(async()=>{
+  window.__microphoneRequests=0;
+  Object.defineProperty(navigator,'mediaDevices',{configurable:true,value:{getUserMedia:async()=>{
+   window.__microphoneRequests++;throw Error('unexpected microphone access');
+  }}});
+  window.SpeechRecognition=class UnexpectedBrowserAsr{constructor(){throw Error('browser ASR must not start')}};
+  const module=await import('/src/studio-public-dictation.mjs');
+  window.__voiceTest=module.mountPublicDictation(document,{hostname:'4citeb4u.github.io'});
+ });
+ await blocked.locator('#publicDictationStart').click();
+ assert.match(await blocked.locator('#publicDictationStatus').textContent(),/LeeWay GPU ASR adapter is not bound/);
+ assert.equal(await blocked.evaluate(()=>window.__microphoneRequests),0,'unbound public page must not open the microphone');
+ await blocked.close();
+ console.log('PUBLIC_STUDIO_DICTATION_AND_GPU_ASR_FAIL_CLOSED_PASS');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
