@@ -1,5 +1,6 @@
 <!--
 LEEWAY HEADER — DO NOT REMOVE
+DISCOVERY_PIPELINE: Voice → Intent → Location → Vertical → Ranking → Render
 REGION: LEEWAY.REPOSITORY.WORKER.ADMISSION
 TAG: LEEWAY.REPOSITORY.OPERATION.CONTRACT.V1
 5WH:
@@ -9,7 +10,7 @@ WHO = Creator/Human Authority and this repository's actual owner.
 WHERE = AGENTS.md in 4citeB4U/LeeWay-Voice-Fabric.
 WHEN = 2026-11-12.
 HOW = Approved Standards first-read, existing Runtime/Skills and true owner-controlled gates.
-LICENSE = Repository's existing terms; no new rights declared.
+LICENSE: Repository's existing terms; no new rights declared.
 -->
 # LeeWay Mandatory Worker Admission
 
@@ -22,3 +23,7 @@ For each consequential action define governing laws/regulations/jurisdiction, ap
 Follow Investigate → Diagnose → Plan → Implement → Test → Validate → Repair → Retest → Verify → Evidence → Checkpoint → Continue. Use original Machine Consciousness and Skill Orchestrator multi-skill capability weave with bounded focal execution, conflict-safe concurrency and original Runtime workplane handoffs. Outside assistants BUILD → TEACH → ASSESS; permanent workers independently learn and demonstrate. Existing 100-point qualification, proposed 94 mentoring trigger and merit families require real independent issue/readback; badges cannot convey permissions.
 
 Digital Brain/Diagnostics belong only to their physical host, where applicable; all other LeeWay systems remain portable. Preserve current repository contract and human/privacy/security permissions. Distinguish SOURCE_IMPLEMENTED / TESTED / CI_PASS / DEPLOYED / LIVE_OBSERVED / VERITAS_VERIFIED / QUALIFIED. AGENTS.md publication alone does not prove an external model or host loaded it; runtime admission and independent CI/behavioral tests must be implemented separately.
+
+## Final boundary — effective canonical law and work custody
+
+[Approved LeeWay Standards main](https://github.com/4citeB4U/LeeWay-Standards/commit/2e5e98bdc49cfe0bf180de394db054eaf2f8e3d3) supersedes historical pending PR #71 references. Final handoff requires mission/work/source, scope/grants, evidence FOR/AGAINST, measurements, decisions, corrections, learner practice and next owner/gate. No source or test result self-confers production authority.
