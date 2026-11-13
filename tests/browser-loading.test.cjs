@@ -1,9 +1,17 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
-function setup({nativeDecoder=false,gpu=false}={}){let now=0,id=0;const timers=new Map(),workers=[];class Worker{constructor(){this.sent=[];this.terminated=false;workers.push(this);}postMessage(message){this.sent.push(message);}terminate(){this.terminated=true;}reply(type,data={}){const request=this.sent.findLast(m=>m.id);this.onmessage({data:{id:request.id,type,data}});}}
+function setup({nativeDecoder=false,gpu=false,model}={}){let now=0,id=0;const timers=new Map(),workers=[],workerUrls=[];class Worker{constructor(url,options){workerUrls.push({url,options});this.sent=[];this.terminated=false;workers.push(this);}postMessage(message){this.sent.push(message);}terminate(){this.terminated=true;}reply(type,data={}){const request=this.sent.findLast(m=>m.id);this.onmessage({data:{id:request.id,type,data}});}}
  const staged=[];const nativeClient={cancel(){},request(){return Promise.resolve({});}};const scope={stageVoiceAssets:async options=>staged.push(options),createNativeDecoderClient:()=>nativeClient,Worker,AbortController,DOMException,URL,console,navigator:gpu?{gpu:{}}:{},setTimeout(fn,ms){const key=++id;timers.set(key,{fn,at:now+ms});return key;},clearTimeout(key){timers.delete(key);},AudioContext:class{constructor(){this.state='suspended';}async close(){this.state='closed';}}};vm.createContext(scope);vm.runInContext(fs.readFileSync(__dirname+'/../src/browser-voice.js','utf8').replaceAll('await import(CACHE_MODULE_URL)','({stageVoiceAssets:globalThis.stageVoiceAssets})').replaceAll('await import(NATIVE_MODULE_URL)','({createNativeDecoderClient:globalThis.createNativeDecoderClient})'),scope);
- const options={skipDefaultReference:true};if(nativeDecoder)options.nativeDecoder={prepare(){},decode(){},cancel(){}};
- return {voice:new scope.LeeWayBrowserVoice(options),workers,timers,staged,nativeClient,advance(ms){now+=ms;for(const [key,t]of [...timers])if(t.at<=now){timers.delete(key);t.fn();}}};}
+ const options={skipDefaultReference:true};if(model)options.model=model;if(nativeDecoder)options.nativeDecoder={prepare(){},decode(){},cancel(){}};
+ return {voice:new scope.LeeWayBrowserVoice(options),workers,workerUrls,timers,staged,nativeClient,advance(ms){now+=ms;for(const [key,t]of [...timers])if(t.at<=now){timers.delete(key);t.fn();}}};}
+
+test('conversation Chatterbox uses the pinned Turbo worker while default clients remain unchanged',()=>{
+ const conversation=setup({model:'turbo'});conversation.voice.createWorker();
+ assert.equal(new URL(conversation.workerUrls[0].url).searchParams.get('model'),'turbo');
+ assert.equal(new URL(conversation.workerUrls[0].url).searchParams.get('v'),'20261024-chatterbox-turbo-quality1');
+ const standard=setup();standard.voice.createWorker();
+ assert.equal(new URL(standard.workerUrls[0].url).searchParams.has('model'),false);
+});
 
 test('continuous progress cannot extend the absolute preparation deadline',async()=>{const h=setup(),load=h.voice.load(),failure=assert.rejects(load,/15 minute|too long/);await tick();for(let i=0;i<14;i++){h.advance(60000);h.workers[0].reply('progress',{loaded:i});}h.advance(60000);await failure;assert.equal(h.voice.ready,false);assert.equal(h.workers[0].terminated,true);assert.equal(h.voice.pending.size,0);assert.equal(h.voice.loading,null);assert.equal(h.timers.size,0);});
 test('cancel preparation rejects promptly and a fresh load survives old finally',async()=>{const h=setup(),old=h.voice.load(),failure=assert.rejects(old,{name:'AbortError'});await tick();await h.voice.cancelLoad();const fresh=h.voice.load();await tick();await failure;assert.equal(h.workers[0].terminated,true);assert.ok(h.voice.loading);h.workers[1].reply('complete',{device:'wasm'});await fresh;assert.equal(h.voice.ready,true);assert.equal(h.voice.pending.size,0);assert.equal(h.timers.size,0);});
@@ -15,3 +23,31 @@ test('Android WebGPU failure retries through native CPU decoder',async()=>{const
 test('failed CPU retry terminates and does not loop',async()=>{const h=setup(),load=h.voice.load(),failure=assert.rejects(load,/CPU failed/);await tick();h.workers[0].reply('error',{message:'WebGPU shader error',retryableGPU:true});await tick();h.workers[1].reply('error',{message:'CPU failed',retryableGPU:true});await failure;assert.equal(h.workers.length,2);assert.equal(h.workers[1].terminated,true);});
 async function workerError(message){const replies=[];const scope={URL,console,Float32Array,performance,self:{location:{href:'https://example.test/worker.js'},addEventListener(){},navigator:{gpu:{requestAdapter:async()=>({features:new Set()})}},postMessage:value=>replies.push(value)},env:{backends:{onnx:{wasm:{},webgpu:{}}}},AutoProcessor:{from_pretrained:async()=>({})},ChatterboxModel:{from_pretrained:async()=>{throw new Error(message)}},InterruptableStoppingCriteria:class{interrupt(){}},fetch:async()=>({ok:true,json:async()=>({})})};scope.navigator=scope.self.navigator;vm.createContext(scope);const source=fs.readFileSync(__dirname+'/../src/chatterbox.worker.js','utf8').replace(/^import .*;\r?\n/gm,'');vm.runInContext(source,scope);scope.self.onmessage({data:{id:1,type:'load',data:{}}});await tick();return replies.find(r=>r.type==='error').data;}
 test('worker classifies GPU compilation only; network mentioning WebGPU does not retry',async()=>{assert.equal((await workerError('WebGPU shader compile failed')).retryableGPU,true);assert.equal((await workerError('Failed to fetch WebGPU model')).retryableGPU,false);assert.equal((await workerError('HTTP404 missing shader file')).retryableGPU,false);assert.equal((await workerError('Unknown model')).retryableGPU,false);});
+
+async function turboWorkerDtype(device,features=[]){
+ const replies=[],navigator={gpu:{requestAdapter:async()=>({features:new Set(features)})}};
+ const scope={URL,console,Float32Array,performance,navigator,
+  self:{location:{href:'https://example.test/worker.js?model=turbo'},addEventListener(){},navigator,postMessage:value=>replies.push(value)},
+  env:{backends:{onnx:{wasm:{},webgpu:{}}}},AutoProcessor:{from_pretrained:async()=>({})},
+  ChatterboxModel:{from_pretrained:async(_model,options)=>({can_generate:true,sessions:{embed_tokens:{inputNames:['exaggeration']}},dtype:options.dtype})},
+  InterruptableStoppingCriteria:class{interrupt(){}},fetch:async()=>({ok:true,json:async()=>({})})};
+ vm.createContext(scope);const source=fs.readFileSync(__dirname+'/../src/chatterbox.worker.js','utf8').replace(/^import .*;\r?\n/gm,'');vm.runInContext(source,scope);
+ scope.self.onmessage({data:{id:1,type:'load',data:{device}}});await tick();await tick();
+ const complete=replies.find(reply=>reply.type==='complete');assert.ok(complete,JSON.stringify(replies));return complete.data.dtype;
+}
+test('Turbo keeps speaker encoding and waveform decoding at high precision',async()=>{
+ assert.deepEqual(JSON.parse(JSON.stringify(await turboWorkerDtype('webgpu',['shader-f16']))),{embed_tokens:'fp16',speech_encoder:'fp16',conditional_decoder:'fp16',language_model:'q4f16'});
+ assert.deepEqual(JSON.parse(JSON.stringify(await turboWorkerDtype('wasm'))),{embed_tokens:'fp32',speech_encoder:'fp32',conditional_decoder:'fp32',language_model:'q4'});
+});
+test('Turbo generation uses the published repetition and sampling profile',()=>{
+ const scope={URL,console,Float32Array,performance,self:{location:{href:'https://example.test/worker.js?model=turbo'},addEventListener(){},navigator:{},postMessage(){}},env:{backends:{onnx:{wasm:{},webgpu:{}}}},InterruptableStoppingCriteria:class{}};
+ vm.createContext(scope);const source=fs.readFileSync(__dirname+'/../src/chatterbox.worker.js','utf8').replace(/^import .*;\r?\n/gm,'');
+ vm.runInContext(source,scope);
+ const turbo=JSON.parse(JSON.stringify(vm.runInContext('generationParameters({},null,null)',scope)));
+ assert.equal(turbo.temperature,.8);assert.equal(turbo.top_k,1000);assert.equal(turbo.repetition_penalty,1.2);assert.equal(turbo.max_new_tokens,1024);
+ const classicScope={...scope};classicScope.self={...scope.self,location:{href:'https://example.test/worker.js'}};vm.createContext(classicScope);
+ vm.runInContext(source,classicScope);
+ const classic=JSON.parse(JSON.stringify(vm.runInContext('generationParameters({},null,null)',classicScope)));
+ assert.equal(classic.top_k,50);assert.equal(classic.max_new_tokens,384);assert.equal('repetition_penalty' in classic,false);
+});
+

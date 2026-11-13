@@ -81,8 +81,8 @@ test('direct speech prepares one following sentence during playback and stops pe
  voice.stop();finish();await rejection;assert.equal(played.length,1);
 });
 
-test('browser voice uses the requested twenty-two percent faster pace by default',()=>{
- const {voice}=setup();assert.equal(voice.playbackRate,1.22);voice.setPace(1.2);assert.equal(voice.playbackRate,1.2);voice.setPace('invalid');assert.equal(voice.playbackRate,1.22);
+test('browser voice defaults to natural pace and honors explicit pace changes',()=>{
+ const {voice}=setup();assert.equal(voice.playbackRate,1);voice.setPace(1.2);assert.equal(voice.playbackRate,1.2);voice.setPace('invalid');assert.equal(voice.playbackRate,1);
 });
 
 test('a cancelled slow reference cannot overwrite a newly selected speaker',async()=>{
@@ -111,3 +111,4 @@ test('lab delivery adjustments made during preparation survive async loading',as
  await tick();node('#delivery').value='.5';node('#delivery').onchange({target:node('#delivery')});node('#pace').value='1.03';node('#pace').oninput({target:node('#pace')});
  release();await tick();assert.equal(instance.exaggeration,.5);assert.equal(instance.playbackRate,1.03);assert.equal(node('#state').textContent,'Agent Lee Voice One ready.');
 });
+
